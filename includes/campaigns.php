@@ -270,6 +270,43 @@ function updateMatcher($matcherId, $data) {
 }
 
 /**
+ * Reorder a matcher
+ * $direction: 'up' | 'down'
+ */
+function reorderMatcher($matcherId, $direction) {
+    $matcher = db()->fetch("SELECT id, campaign_id, display_order FROM campaign_matchers WHERE id = ?", [(int)$matcherId]);
+    if (!$matcher) return false;
+
+    $currentOrder = $matcher['display_order'];
+    $campaignId = $matcher['campaign_id'];
+
+    if ($direction === 'up') {
+        $other = db()->fetch(
+            "SELECT id, display_order FROM campaign_matchers 
+            WHERE campaign_id = ? AND display_order < ? 
+            ORDER BY display_order DESC LIMIT 1",
+            [$campaignId, $currentOrder]
+        );
+    } else {
+        $other = db()->fetch(
+            "SELECT id, display_order FROM campaign_matchers 
+            WHERE campaign_id = ? AND display_order > ? 
+            ORDER BY display_order ASC LIMIT 1",
+            [$campaignId, $currentOrder]
+        );
+    }
+
+    if ($other) {
+        $otherOrder = $other['display_order'];
+        db()->update('campaign_matchers', ['display_order' => $otherOrder], 'id = ?', [$matcher['id']]);
+        db()->update('campaign_matchers', ['display_order' => $currentOrder], 'id = ?', [$other['id']]);
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Remove a matcher
  */
 function removeMatcher($matcherId) {

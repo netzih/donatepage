@@ -148,6 +148,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Failed to remove matcher: ' . $e->getMessage();
                 }
                 break;
+                
+            case 'reorder_matcher':
+                try {
+                    reorderMatcher($_POST['matcher_id'], $_POST['direction']);
+                    // No success message needed for reordering, just keep state
+                    $success = 'Matcher order updated!';
+                } catch (Exception $e) {
+                    $error = 'Failed to reorder matcher: ' . $e->getMessage();
+                }
+                break;
+                
+            case 'update_matcher':
+                try {
+                    $matcherId = (int)$_POST['matcher_id'];
+                    $updateData = [
+                        'name' => $_POST['matcher_name'],
+                        'amount_pledged' => $_POST['amount_pledged'] ?? 0,
+                        'color' => $_POST['matcher_color'] ?? null
+                    ];
+                    
+                    // Handle image upload if new one provided
+                    if (!empty($_FILES['matcher_image']['name'])) {
+                        $newImage = handleUpload('matcher_image');
+                        if ($newImage) {
+                            $updateData['image'] = $newImage;
+                        }
+                    }
+                    
+                    updateMatcher($matcherId, $updateData);
+                    $success = 'Matcher updated successfully!';
+                } catch (Exception $e) {
+                    $error = 'Failed to update matcher: ' . $e->getMessage();
+                }
+                break;
         }
     }
 }
@@ -602,13 +636,47 @@ if ($action === 'list') {
                             <?php endif; ?>
                         </div>
                         
-                        <form method="POST" style="margin: 0;" onsubmit="return confirm('Remove this matcher?')">
-                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
-                            <input type="hidden" name="action" value="remove_matcher">
-                            <input type="hidden" name="matcher_id" value="<?= $matcher['id'] ?>">
-                            <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
-                            <button type="submit" class="btn btn-sm" style="background: #dc3545; color: white;">Remove</button>
-                        </form>
+                        <div class="matcher-controls" style="display: flex; gap: 5px; align-items: center;">
+                            <!-- Reorder buttons -->
+                            <form method="POST" style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                <input type="hidden" name="action" value="reorder_matcher">
+                                <input type="hidden" name="matcher_id" value="<?= $matcher['id'] ?>">
+                                <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
+                                <input type="hidden" name="direction" value="up">
+                                <button type="submit" class="btn btn-sm" style="padding: 2px 5px; background: #6c757d; color: white;" title="Move Up">↑</button>
+                            </form>
+                            <form method="POST" style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                <input type="hidden" name="action" value="reorder_matcher">
+                                <input type="hidden" name="matcher_id" value="<?= $matcher['id'] ?>">
+                                <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
+                                <input type="hidden" name="direction" value="down">
+                                <button type="submit" class="btn btn-sm" style="padding: 2px 5px; background: #6c757d; color: white;" title="Move Down">↓</button>
+                            </form>
+                            
+                            <!-- Edit button -->
+                            <button type="button" class="btn btn-primary btn-sm" 
+                                    style="padding: 2px 8px;"
+                                    onclick="editMatcher(<?= h(json_encode([
+                                        'id' => $matcher['id'],
+                                        'name' => $matcher['name'],
+                                        'amount' => $matcher['amount_pledged'],
+                                        'color' => $matcher['color'] ?: '#667eea',
+                                        'image' => $matcher['image']
+                                    ])) ?>)">
+                                Edit
+                            </button>
+                            
+                            <!-- Remove button -->
+                            <form method="POST" style="margin: 0;" onsubmit="return confirm('Remove this matcher?')">
+                                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                <input type="hidden" name="action" value="remove_matcher">
+                                <input type="hidden" name="matcher_id" value="<?= $matcher['id'] ?>">
+                                <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
+                                <button type="submit" class="btn btn-sm" style="background: #dc3545; color: white; padding: 2px 8px;">Remove</button>
+                            </form>
+                        </div>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -645,16 +713,72 @@ if ($action === 'list') {
             <!-- Delete Campaign -->
             <section class="card" style="margin-top: 24px; border: 1px solid #dc3545;">
                 <h2 style="color: #dc3545;">Danger Zone</h2>
-                <p style="color: #666; margin-bottom: 16px;">Deleting a campaign is permanent and cannot be undone.</p>
-                
-                <form method="POST" onsubmit="return confirm('Are you sure you want to delete this campaign? This cannot be undone.')">
+                <p style="color: #666; margin-bottom: 20px;">Deleting a campaign is permanent and will remove all associated matchers.</p>
+                <form method="POST" onsubmit="return confirm('EXTREMELY IMPORTANT: Deleting this campaign will also remove all associated donation records from the statistics. Are you absolutely sure?')">
                     <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
-                    <button type="submit" class="btn" style="background: #dc3545; color: white;">Delete Campaign</button>
+                    <button type="submit" class="btn" style="background: #dc3545; color: white;">Delete Campaign Forever</button>
                 </form>
             </section>
             
+            <!-- Edit Matcher Modal -->
+            <div id="edit-matcher-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+                <div class="modal-content" style="background:white; padding:30px; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto;">
+                    <h2>Edit Matcher</h2>
+                    <form method="POST" enctype="multipart/form-data" style="margin-top: 20px;">
+                        <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                        <input type="hidden" name="action" value="update_matcher">
+                        <input type="hidden" name="campaign_id" value="<?= $campaign['id'] ?>">
+                        <input type="hidden" id="edit_matcher_id" name="matcher_id">
+                        
+                        <div class="form-group">
+                            <label for="edit_matcher_name">Matcher Name *</label>
+                            <input type="text" id="edit_matcher_name" name="matcher_name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit_amount_pledged">Amount Pledged ($)</label>
+                            <input type="number" id="edit_amount_pledged" name="amount_pledged" min="0" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit_matcher_color">Icon Color (If no image)</label>
+                            <input type="color" id="edit_matcher_color" name="matcher_color">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit_matcher_image">Update Photo (Optional)</label>
+                            <div id="current_matcher_image" style="margin-bottom: 10px;"></div>
+                            <input type="file" id="edit_matcher_image" name="matcher_image" accept="image/*">
+                            <small>Leave blank to keep current photo</small>
+                        </div>
+                        
+                        <div style="display: flex; gap: 12px; margin-top: 24px;">
+                            <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                            <button type="button" onclick="document.getElementById('edit-matcher-modal').style.display='none'" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <script>
+                function editMatcher(matcher) {
+                    document.getElementById('edit_matcher_id').value = matcher.id;
+                    document.getElementById('edit_matcher_name').value = matcher.name;
+                    document.getElementById('edit_amount_pledged').value = matcher.amount;
+                    document.getElementById('edit_matcher_color').value = matcher.color;
+                    
+                    const imagePreview = document.getElementById('current_matcher_image');
+                    if (matcher.image) {
+                        imagePreview.innerHTML = `<img src="../${matcher.image}" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid #ddd;">`;
+                    } else {
+                        imagePreview.innerHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: ${matcher.color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 1px solid #ddd;">${matcher.name.substring(0, 1)}</div>`;
+                    }
+                    
+                    document.getElementById('edit-matcher-modal').style.display = 'flex';
+                }
+            </script>
             <?php endif; ?>
         </main>
     </div>
