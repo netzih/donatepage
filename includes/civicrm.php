@@ -12,13 +12,30 @@ function civicrm_api4($entity, $action, $params = []) {
     $baseUrl = rtrim(getSetting('civicrm_url'), '/');
     $apiKey = getSetting('civicrm_api_key');
     $siteKey = getSetting('civicrm_site_key');
+    $platform = getSetting('civicrm_platform', 'wordpress');
     
     if (empty($baseUrl) || empty($apiKey) || empty($siteKey)) {
         return ['error' => 'CiviCRM not configured'];
     }
     
-    // Build API4 endpoint URL
-    $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
+    // Build API4 endpoint URL based on CMS platform
+    switch ($platform) {
+        case 'wordpress':
+            // WordPress REST API endpoint
+            $url = $baseUrl . '/wp-json/civicrm/v3/rest?entity=' . $entity . '&action=' . $action . '&json=' . urlencode(json_encode($params));
+            break;
+        case 'drupal':
+        case 'standalone':
+            // Drupal/Standalone uses AJAX endpoint
+            $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
+            break;
+        case 'joomla':
+            // Joomla uses index.php with options
+            $url = $baseUrl . '/index.php?option=com_civicrm&task=civicrm/ajax/api4/' . $entity . '/' . $action;
+            break;
+        default:
+            $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
+    }
     
     // Check SSL verification setting
     $skipSsl = getSetting('civicrm_skip_ssl') === '1';
@@ -26,20 +43,36 @@ function civicrm_api4($entity, $action, $params = []) {
     // Prepare request
     $ch = curl_init();
     
-    curl_setopt_array($ch, [
+    // Set common options
+    $options = [
         CURLOPT_URL => $url,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($params),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'X-Civi-Auth: Bearer ' . $apiKey,
-            'X-Civi-Key: ' . $siteKey
-        ],
         CURLOPT_TIMEOUT => 30,
         CURLOPT_SSL_VERIFYPEER => !$skipSsl,
         CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2
-    ]);
+    ];
+    
+    // Platform-specific request configuration
+    if ($platform === 'wordpress') {
+        // WordPress uses GET with api_key parameter
+        $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
+        $options[CURLOPT_URL] = $url;
+        $options[CURLOPT_HTTPGET] = true;
+        $options[CURLOPT_HTTPHEADER] = [
+            'Content-Type: application/json'
+        ];
+    } else {
+        // Drupal/Joomla/Standalone use POST with headers
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($params);
+        $options[CURLOPT_HTTPHEADER] = [
+            'Content-Type: application/json',
+            'X-Civi-Auth: Bearer ' . $apiKey,
+            'X-Civi-Key: ' . $siteKey
+        ];
+    }
+    
+    curl_setopt_array($ch, $options);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

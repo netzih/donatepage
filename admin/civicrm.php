@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             setSetting('civicrm_financial_type', (int)($_POST['civicrm_financial_type'] ?? 1));
             setSetting('civicrm_sync_mode', $_POST['civicrm_sync_mode'] ?? 'manual');
+            setSetting('civicrm_platform', $_POST['civicrm_platform'] ?? 'wordpress');
             setSetting('civicrm_enabled', isset($_POST['civicrm_enabled']) ? '1' : '0');
             setSetting('civicrm_skip_ssl', isset($_POST['civicrm_skip_ssl']) ? '1' : '0');
             
@@ -206,6 +207,17 @@ $csrfToken = generateCsrfToken();
                                value="<?= h($settings['civicrm_url'] ?? '') ?>"
                                placeholder="https://yoursite.org">
                         <small>Base URL of your CiviCRM site (without /civicrm)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="civicrm_platform">CMS Platform</label>
+                        <select id="civicrm_platform" name="civicrm_platform" style="width: 200px;">
+                            <option value="wordpress" <?= ($settings['civicrm_platform'] ?? 'wordpress') === 'wordpress' ? 'selected' : '' ?>>WordPress</option>
+                            <option value="drupal" <?= ($settings['civicrm_platform'] ?? '') === 'drupal' ? 'selected' : '' ?>>Drupal</option>
+                            <option value="joomla" <?= ($settings['civicrm_platform'] ?? '') === 'joomla' ? 'selected' : '' ?>>Joomla</option>
+                            <option value="standalone" <?= ($settings['civicrm_platform'] ?? '') === 'standalone' ? 'selected' : '' ?>>Standalone</option>
+                        </select>
+                        <small>Select the CMS your CiviCRM is installed on</small>
                     </div>
                     
                     <div class="form-row">
