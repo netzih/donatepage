@@ -1,18 +1,35 @@
 /**
  * Donation Page JavaScript
- * Handles amount selection, Stripe checkout, and PayPal integration
+ * Handles amount selection, Stripe Payment Elements, and PayPal integration
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     // State
     let selectedAmount = 100;
     let frequency = 'once';
+    let stripe = null;
+    let elements = null;
+    let paymentElement = null;
+    let clientSecret = null;
+    let donationId = null;
 
     // Elements
     const amountBtns = document.querySelectorAll('.amount-btn');
     const freqBtns = document.querySelectorAll('.freq-btn');
     const customInput = document.getElementById('custom-amount');
     const stripeBtn = document.getElementById('stripe-btn');
+    const amountStep = document.getElementById('amount-step');
+    const paymentStep = document.getElementById('payment-step');
+    const backBtn = document.getElementById('back-btn');
+    const submitBtn = document.getElementById('submit-payment');
+    const paymentMessage = document.getElementById('payment-message');
+    const donorName = document.getElementById('donor-name');
+    const donorEmail = document.getElementById('donor-email');
+
+    // Initialize Stripe
+    if (CONFIG.stripeKey) {
+        stripe = Stripe(CONFIG.stripeKey);
+    }
 
     // Amount button click
     amountBtns.forEach(btn => {
@@ -48,54 +65,169 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Stripe checkout
-    if (stripeBtn && CONFIG.stripeKey) {
-        const stripe = Stripe(CONFIG.stripeKey);
+    // Show payment step
+    async function showPaymentStep() {
+        if (selectedAmount < 1) {
+            alert('Please select or enter a valid amount');
+            return;
+        }
 
-        stripeBtn.addEventListener('click', async () => {
-            if (selectedAmount < 1) {
-                alert('Please select or enter a valid amount');
+        stripeBtn.disabled = true;
+        stripeBtn.textContent = 'Loading...';
+
+        try {
+            // Create PaymentIntent
+            const response = await fetch('api/create-payment-intent.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: selectedAmount,
+                    frequency: frequency,
+                    csrf_token: CONFIG.csrfToken
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            clientSecret = data.clientSecret;
+            donationId = data.donationId;
+
+            // Initialize Payment Elements
+            const appearance = {
+                theme: 'stripe',
+                variables: {
+                    colorPrimary: '#20a39e',
+                    colorBackground: '#ffffff',
+                    colorText: '#333333',
+                    fontFamily: 'Montserrat, sans-serif',
+                    borderRadius: '8px'
+                }
+            };
+
+            elements = stripe.elements({ clientSecret, appearance });
+            paymentElement = elements.create('payment');
+            paymentElement.mount('#payment-element');
+
+            // Show payment step, hide amount step
+            amountStep.style.display = 'none';
+            paymentStep.style.display = 'block';
+
+            // Update step indicator
+            document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
+
+        } catch (error) {
+            showMessage(error.message, 'error');
+        } finally {
+            stripeBtn.disabled = false;
+            stripeBtn.innerHTML = '<span class="pay-icon">💳</span> Continue to Payment';
+        }
+    }
+
+    // Back button
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            paymentStep.style.display = 'none';
+            amountStep.style.display = 'flex';
+            document.querySelector('.card-step').textContent = 'AMOUNT • 1/2';
+
+            // Cleanup
+            if (paymentElement) {
+                paymentElement.unmount();
+                paymentElement = null;
+            }
+        });
+    }
+
+    // Stripe button click
+    if (stripeBtn) {
+        stripeBtn.addEventListener('click', showPaymentStep);
+    }
+
+    // Submit payment
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            if (!donorName.value.trim()) {
+                showMessage('Please enter your name', 'error');
+                donorName.focus();
                 return;
             }
 
-            stripeBtn.disabled = true;
-            stripeBtn.classList.add('loading');
-            stripeBtn.textContent = 'Processing...';
+            if (!donorEmail.value.trim() || !isValidEmail(donorEmail.value)) {
+                showMessage('Please enter a valid email', 'error');
+                donorEmail.focus();
+                return;
+            }
+
+            setLoading(true);
 
             try {
-                const response = await fetch('api/process-stripe.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+                const { error, paymentIntent } = await stripe.confirmPayment({
+                    elements,
+                    confirmParams: {
+                        return_url: window.location.origin + '/success.php',
+                        receipt_email: donorEmail.value.trim()
                     },
-                    body: JSON.stringify({
-                        amount: selectedAmount,
-                        frequency: frequency,
-                        csrf_token: CONFIG.csrfToken
-                    })
+                    redirect: 'if_required'
                 });
 
-                const data = await response.json();
-
-                if (data.error) {
-                    throw new Error(data.error);
+                if (error) {
+                    if (error.type === 'card_error' || error.type === 'validation_error') {
+                        showMessage(error.message, 'error');
+                    } else {
+                        showMessage('An unexpected error occurred.', 'error');
+                    }
+                    setLoading(false);
+                    return;
                 }
 
-                // Redirect to Stripe Checkout
-                const result = await stripe.redirectToCheckout({
-                    sessionId: data.sessionId
-                });
+                if (paymentIntent && paymentIntent.status === 'succeeded') {
+                    // Confirm payment on server
+                    const confirmResponse = await fetch('api/confirm-payment.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            payment_intent_id: paymentIntent.id,
+                            donor_name: donorName.value.trim(),
+                            donor_email: donorEmail.value.trim()
+                        })
+                    });
 
-                if (result.error) {
-                    throw new Error(result.error.message);
+                    const confirmData = await confirmResponse.json();
+
+                    if (confirmData.success) {
+                        window.location.href = 'success.php?id=' + confirmData.donationId;
+                    } else {
+                        showMessage(confirmData.error || 'Payment confirmation failed', 'error');
+                        setLoading(false);
+                    }
                 }
-            } catch (error) {
-                alert('Error: ' + error.message);
-                stripeBtn.disabled = false;
-                stripeBtn.classList.remove('loading');
-                stripeBtn.innerHTML = '<span class="pay-icon">💳</span> Pay with Card';
+
+            } catch (err) {
+                showMessage('Payment failed. Please try again.', 'error');
+                setLoading(false);
             }
         });
+    }
+
+    // Helper functions
+    function showMessage(text, type = 'info') {
+        paymentMessage.textContent = text;
+        paymentMessage.className = 'payment-message ' + type;
+        paymentMessage.style.display = 'block';
+    }
+
+    function setLoading(isLoading) {
+        submitBtn.disabled = isLoading;
+        document.getElementById('button-text').style.display = isLoading ? 'none' : 'inline';
+        document.getElementById('spinner').style.display = isLoading ? 'inline-block' : 'none';
+    }
+
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
     // PayPal integration
@@ -117,9 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response = await fetch('api/process-paypal.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'create',
                         amount: selectedAmount,
@@ -139,9 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             onApprove: async (data, actions) => {
                 const response = await fetch('api/process-paypal.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'capture',
                         orderId: data.orderID,

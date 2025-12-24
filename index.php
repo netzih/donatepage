@@ -81,10 +81,42 @@ $csrfToken = generateCsrfToken();
                         <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
                     </div>
                     
-                    <div class="payment-buttons">
+                    <!-- Step 2: Payment Form (hidden initially) -->
+                    <div id="payment-step" class="payment-step" style="display: none;">
+                        <div class="card-step">PAYMENT • 2/2</div>
+                        
+                        <div class="form-group">
+                            <label for="donor-name">Full Name</label>
+                            <input type="text" id="donor-name" placeholder="John Doe" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="donor-email">Email</label>
+                            <input type="email" id="donor-email" placeholder="john@example.com" required>
+                        </div>
+                        
+                        <?php if ($stripePk): ?>
+                        <div class="form-group">
+                            <label>Card Details</label>
+                            <div id="payment-element"></div>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div id="payment-message" class="payment-message"></div>
+                        
+                        <button id="submit-payment" class="pay-btn pay-stripe" type="button">
+                            <span id="button-text">Complete Donation</span>
+                            <span id="spinner" class="spinner" style="display: none;"></span>
+                        </button>
+                        
+                        <button id="back-btn" class="back-btn" type="button">← Back to amount</button>
+                    </div>
+                    
+                    <!-- Step 1: Amount Selection -->
+                    <div id="amount-step" class="payment-buttons">
                         <?php if ($stripePk): ?>
                         <button id="stripe-btn" class="pay-btn pay-stripe">
-                            <span class="pay-icon">💳</span> Pay with Card
+                            <span class="pay-icon">💳</span> Continue to Payment
                         </button>
                         <?php endif; ?>
                         
