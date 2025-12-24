@@ -62,6 +62,14 @@ class Database {
         $sql = "UPDATE $table SET $set WHERE $where";
         $this->query($sql, array_merge(array_values($data), $whereParams));
     }
+    
+    /**
+     * Execute a SQL statement (INSERT, UPDATE, DELETE)
+     * Used by security.php for rate limiting
+     */
+    public function execute($sql, $params = []) {
+        return $this->query($sql, $params);
+    }
 }
 
 // Helper function for quick access
