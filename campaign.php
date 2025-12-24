@@ -1,0 +1,332 @@
+<?php
+/**
+ * Public Campaign Page
+ * Displays campaign with matching donation support
+ */
+
+session_start();
+require_once __DIR__ . '/includes/functions.php';
+
+$settings = getAllSettings();
+$presetAmounts = getPresetAmounts();
+$stripePk = $settings['stripe_pk'] ?? '';
+$paypalClientId = $settings['paypal_client_id'] ?? '';
+$paypalMode = $settings['paypal_mode'] ?? 'sandbox';
+
+$orgName = $settings['org_name'] ?? 'Organization';
+$currencySymbol = $settings['currency_symbol'] ?? '$';
+$logoPath = $settings['logo_path'] ?? '';
+
+// Generate CSRF token for API calls
+$csrfToken = generateCsrfToken();
+
+// Get campaign slug from URL
+$slug = isset($_GET['slug']) ? trim($_GET['slug']) : '';
+
+// TODO: This will be populated by Agent B's API
+// For now, use placeholder data structure for frontend development
+$campaign = null;
+$error = null;
+
+if (empty($slug)) {
+    $error = 'Campaign not found';
+} else {
+    // Placeholder campaign data - will be replaced with API call
+    // Agent B will create: getCampaignBySlug($slug)
+    $campaign = [
+        'id' => 1,
+        'slug' => $slug,
+        'title' => 'Sample Campaign',
+        'description' => '<p>This is a placeholder description. Agent B will implement the database and API to fetch real campaign data.</p><p>Support our mission by making a donation today!</p>',
+        'header_image' => '',
+        'goal_amount' => 50000,
+        'raised_amount' => 15000,
+        'donor_count' => 42,
+        'matching_enabled' => true,
+        'matching_multiplier' => 2,
+        'start_date' => date('Y-m-d'),
+        'end_date' => date('Y-m-d', strtotime('+30 days')),
+        'is_active' => true,
+        'matchers' => [
+            ['id' => 1, 'name' => 'Anonymous Donor', 'image' => null],
+            ['id' => 2, 'name' => 'The Smith Foundation', 'image' => null],
+            ['id' => 3, 'name' => 'Community Partners', 'image' => null],
+        ]
+    ];
+}
+
+// Calculate progress percentage
+$progressPercent = 0;
+if ($campaign && $campaign['goal_amount'] > 0) {
+    $progressPercent = min(100, round(($campaign['raised_amount'] / $campaign['goal_amount']) * 100));
+}
+
+// Check if campaign is active
+$isActive = false;
+if ($campaign) {
+    $now = time();
+    $start = strtotime($campaign['start_date']);
+    $end = strtotime($campaign['end_date'] . ' 23:59:59');
+    $isActive = $campaign['is_active'] && $now >= $start && $now <= $end;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $campaign ? h($campaign['title']) . ' - ' : '' ?><?= h($orgName) ?></title>
+    <meta name="description" content="<?= $campaign ? h(strip_tags(substr($campaign['description'], 0, 160))) : 'Support our campaign' ?>">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="<?= $campaign ? h($campaign['title']) : 'Campaign' ?> - <?= h($orgName) ?>">
+    <meta property="og:description" content="<?= $campaign ? h(strip_tags(substr($campaign['description'], 0, 160))) : 'Support our campaign' ?>">
+    <?php if ($campaign && $campaign['header_image']): ?>
+    <meta property="og:image" content="<?= APP_URL . '/' . h($campaign['header_image']) ?>">
+    <?php endif; ?>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css?v=3">
+</head>
+<body class="campaign-page">
+    <?php if ($error): ?>
+    <div class="campaign-error">
+        <div class="error-content">
+            <h1>Campaign Not Found</h1>
+            <p>The campaign you're looking for doesn't exist or has ended.</p>
+            <a href="/" class="btn-primary">Return Home</a>
+        </div>
+    </div>
+    <?php else: ?>
+    
+    <!-- Campaign Hero -->
+    <div class="campaign-hero" style="<?= $campaign['header_image'] ? 'background-image: url(' . h($campaign['header_image']) . ')' : '' ?>">
+        <div class="campaign-hero-overlay"></div>
+        
+        <nav class="campaign-nav">
+            <div class="nav-container">
+                <a href="/" class="logo">
+                    <?php if ($logoPath): ?>
+                        <img src="<?= h($logoPath) ?>" alt="<?= h($orgName) ?>">
+                    <?php else: ?>
+                        <span class="logo-text"><?= h($orgName) ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="#donate" class="nav-donate-btn">Donate Now</a>
+            </div>
+        </nav>
+        
+        <div class="campaign-hero-content">
+            <div class="campaign-title-section">
+                <?php if (!$isActive): ?>
+                <div class="campaign-status-badge">Campaign Ended</div>
+                <?php elseif ($campaign['matching_enabled']): ?>
+                <div class="campaign-match-badge">🔥 Matching Active!</div>
+                <?php endif; ?>
+                
+                <h1 class="campaign-title"><?= h(strtoupper($campaign['title'])) ?></h1>
+                
+                <?php if ($campaign['matching_enabled'] && $isActive): ?>
+                <p class="campaign-match-message">
+                    Every <span class="currency-symbol"><?= h($currencySymbol) ?></span>1 becomes 
+                    <span class="currency-symbol"><?= h($currencySymbol) ?></span><?= $campaign['matching_multiplier'] ?>!
+                </p>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Matchers Slider -->
+            <?php if (!empty($campaign['matchers'])): ?>
+            <div class="matchers-section">
+                <div class="matchers-label">Our Generous Matchers</div>
+                <div class="matchers-slider">
+                    <?php foreach ($campaign['matchers'] as $matcher): ?>
+                    <div class="matcher-card">
+                        <div class="matcher-avatar">
+                            <?php if ($matcher['image']): ?>
+                                <img src="<?= h($matcher['image']) ?>" alt="<?= h($matcher['name']) ?>">
+                            <?php else: ?>
+                                <span class="matcher-initials"><?= h(substr($matcher['name'], 0, 1)) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <span class="matcher-label">MATCHER</span>
+                        <span class="matcher-name"><?= h($matcher['name']) ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <!-- Campaign Content -->
+    <div class="campaign-content">
+        <div class="campaign-main">
+            <!-- Progress Section -->
+            <div class="campaign-progress-card">
+                <div class="progress-stats">
+                    <div class="progress-raised">
+                        <span class="progress-amount"><?= h($currencySymbol) ?><?= number_format($campaign['raised_amount']) ?></span>
+                        <span class="progress-label">raised of <?= h($currencySymbol) ?><?= number_format($campaign['goal_amount']) ?> goal</span>
+                    </div>
+                    <div class="progress-donors">
+                        <span class="donor-count"><?= number_format($campaign['donor_count']) ?></span>
+                        <span class="donor-label">donors</span>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: <?= $progressPercent ?>%"></div>
+                    <span class="progress-percent"><?= $progressPercent ?>%</span>
+                </div>
+            </div>
+            
+            <!-- Campaign Description -->
+            <div class="campaign-description">
+                <h2>About This Campaign</h2>
+                <div class="description-content">
+                    <?= $campaign['description'] ?>
+                </div>
+                
+                <?php if ($campaign['matching_enabled']): ?>
+                <div class="matching-explanation">
+                    <h3>✨ How Matching Works</h3>
+                    <p>Thanks to our generous matchers, every dollar you donate is multiplied by <?= $campaign['matching_multiplier'] ?>x! 
+                    Your <strong><?= h($currencySymbol) ?>100</strong> donation means the organization receives 
+                    <strong><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></strong>.</p>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Donation Sidebar -->
+        <div class="campaign-sidebar" id="donate">
+            <div class="campaign-donation-card">
+                <?php if (!$isActive): ?>
+                <div class="campaign-ended-notice">
+                    <span class="ended-icon">⏰</span>
+                    <p>This campaign has ended. Thank you to all our donors!</p>
+                </div>
+                <?php else: ?>
+                
+                <div class="card-step">DONATE NOW</div>
+                
+                <div class="frequency-toggle">
+                    <button class="freq-btn active" data-freq="once">One-time</button>
+                    <button class="freq-btn" data-freq="monthly">Monthly</button>
+                </div>
+                
+                <div class="amount-grid">
+                    <?php foreach ($presetAmounts as $amt): ?>
+                    <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
+                        <?= h($currencySymbol) ?><?= $amt ?>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                
+                <div class="custom-amount">
+                    <span class="currency"><?= h($currencySymbol) ?></span>
+                    <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
+                </div>
+                
+                <?php if ($campaign['matching_enabled']): ?>
+                <div class="matching-display">
+                    <div class="your-donation">
+                        Your donation: <span id="donation-amount"><?= h($currencySymbol) ?>100</span>
+                    </div>
+                    <div class="org-receives">
+                        <span class="sparkle">✨</span>
+                        <strong>The organization gets: <span id="matched-amount"><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></span></strong>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Step 2: Payment Form (hidden initially) -->
+                <div id="payment-step" class="payment-step" style="display: none;">
+                    <div class="card-step">PAYMENT DETAILS</div>
+                    
+                    <div class="form-group">
+                        <label for="donor-name">Full Name</label>
+                        <input type="text" id="donor-name" placeholder="John Doe" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="donor-email">Email</label>
+                        <input type="email" id="donor-email" placeholder="john@example.com" required>
+                    </div>
+                    
+                    <?php if ($stripePk): ?>
+                    <div class="form-group">
+                        <label>Card Details</label>
+                        <div id="payment-element"></div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div id="payment-message" class="payment-message"></div>
+                    
+                    <button id="submit-payment" class="pay-btn pay-stripe" type="button">
+                        <span id="button-text">Complete Donation</span>
+                        <span id="spinner" class="spinner" style="display: none;"></span>
+                    </button>
+                    
+                    <button id="back-btn" class="back-btn" type="button">← Back to amount</button>
+                </div>
+                
+                <!-- Step 1: Amount Selection -->
+                <div id="amount-step" class="payment-buttons">
+                    <?php if ($stripePk): ?>
+                    <button id="stripe-btn" class="pay-btn pay-stripe">
+                        <span class="pay-icon">💳</span> Continue to Payment
+                    </button>
+                    <?php endif; ?>
+                    
+                    <?php if ($paypalClientId): ?>
+                    <div id="paypal-button-container"></div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="secure-badge">
+                    🔒 Secure 256-bit SSL encryption
+                </div>
+                
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="campaign-footer">
+        <div class="footer-content">
+            <p>&copy; <?= date('Y') ?> <?= h($orgName) ?>. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+            </div>
+        </div>
+    </footer>
+    
+    <?php endif; ?>
+    
+    <?php if ($stripePk): ?>
+    <script src="https://js.stripe.com/v3/"></script>
+    <?php endif; ?>
+    
+    <?php if ($paypalClientId): ?>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?= h($paypalClientId) ?>&currency=USD"></script>
+    <?php endif; ?>
+    
+    <script>
+        const CONFIG = {
+            stripeKey: '<?= h($stripePk) ?>',
+            paypalClientId: '<?= h($paypalClientId) ?>',
+            csrfToken: '<?= h($csrfToken) ?>',
+            currencySymbol: '<?= h($currencySymbol) ?>',
+            campaignId: <?= $campaign ? $campaign['id'] : 'null' ?>,
+            matchingEnabled: <?= ($campaign && $campaign['matching_enabled']) ? 'true' : 'false' ?>,
+            matchingMultiplier: <?= $campaign ? $campaign['matching_multiplier'] : 1 ?>
+        };
+    </script>
+    <script src="assets/js/campaign.js?v=1"></script>
+</body>
+</html>

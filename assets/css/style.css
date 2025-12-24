@@ -564,3 +564,561 @@ body.embed-styled .donation-card {
     margin-left: auto;
     margin-right: 40px;
 }
+
+/* ========================================
+   CAMPAIGN PAGE STYLES
+   ======================================== */
+
+/* Campaign Page Body */
+body.campaign-page {
+    background: #f5f5f5;
+}
+
+/* Campaign Error */
+.campaign-error {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.campaign-error .error-content {
+    text-align: center;
+    color: white;
+}
+
+.campaign-error h1 {
+    font-size: 2.5rem;
+    margin-bottom: 16px;
+}
+
+.campaign-error p {
+    opacity: 0.8;
+    margin-bottom: 32px;
+}
+
+.campaign-error .btn-primary {
+    display: inline-block;
+    padding: 14px 32px;
+    background: var(--teal);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 700;
+    transition: all 0.3s;
+}
+
+.campaign-error .btn-primary:hover {
+    background: var(--teal-hover);
+    transform: translateY(-2px);
+}
+
+/* Campaign Hero */
+.campaign-hero {
+    min-height: 500px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.campaign-hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+    pointer-events: none;
+}
+
+/* Campaign Navigation */
+.campaign-nav {
+    position: relative;
+    z-index: 10;
+    padding: 20px 0;
+}
+
+.campaign-nav .nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-donate-btn {
+    background: var(--teal);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+}
+
+.nav-donate-btn:hover {
+    background: var(--teal-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(32, 163, 158, 0.4);
+}
+
+/* Campaign Hero Content */
+.campaign-hero-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 40px 24px 60px;
+    position: relative;
+    z-index: 10;
+    color: white;
+}
+
+.campaign-title-section {
+    margin-bottom: 40px;
+}
+
+.campaign-status-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+}
+
+.campaign-match-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    padding: 10px 24px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.campaign-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.campaign-match-message {
+    font-size: 1.3rem;
+    opacity: 0.95;
+}
+
+.campaign-match-message .currency-symbol {
+    font-weight: 700;
+}
+
+/* Matchers Section */
+.matchers-section {
+    width: 100%;
+    max-width: 900px;
+}
+
+.matchers-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
+.matchers-slider {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 10px 0;
+}
+
+.matcher-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 100px;
+}
+
+.matcher-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal), #667eea);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    transition: transform 0.3s;
+}
+
+.matcher-avatar:hover {
+    transform: scale(1.1);
+}
+
+.matcher-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.matcher-initials {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.matcher-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 3px 8px;
+    border-radius: 10px;
+}
+
+.matcher-name {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Campaign Content Layout */
+.campaign-content {
+    max-width: 1200px;
+    margin: -60px auto 60px;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 40px;
+    position: relative;
+    z-index: 20;
+}
+
+/* Campaign Main Content */
+.campaign-main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Progress Card */
+.campaign-progress-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+
+.progress-raised {
+    display: flex;
+    flex-direction: column;
+}
+
+.progress-amount {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--teal);
+    line-height: 1;
+}
+
+.progress-label {
+    font-size: 14px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.progress-donors {
+    text-align: right;
+}
+
+.donor-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.donor-label {
+    font-size: 14px;
+    color: #666;
+    display: block;
+}
+
+.progress-bar-container {
+    position: relative;
+    height: 24px;
+    background: #e8e8e8;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), #667eea);
+    border-radius: 12px;
+    transition: width 1s ease-out;
+    min-width: 40px;
+}
+
+.progress-percent {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    font-weight: 700;
+    color: #666;
+}
+
+/* Campaign Description */
+.campaign-description {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.campaign-description h2 {
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.description-content {
+    line-height: 1.8;
+    color: #444;
+}
+
+.description-content p {
+    margin-bottom: 16px;
+}
+
+.matching-explanation {
+    background: linear-gradient(135deg, #f6f9fc 0%, #eef7f6 100%);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+    border-left: 4px solid var(--teal);
+}
+
+.matching-explanation h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--teal);
+}
+
+.matching-explanation p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Campaign Sidebar / Donation Card */
+.campaign-sidebar {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+}
+
+.campaign-donation-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.campaign-ended-notice {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.ended-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+}
+
+.campaign-ended-notice p {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Matching Display */
+.matching-display {
+    background: linear-gradient(135deg, #f6f9fc 0%, #eef7f6 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: center;
+    border: 2px solid rgba(32, 163, 158, 0.2);
+}
+
+.your-donation {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.your-donation span {
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.org-receives {
+    font-size: 16px;
+    color: var(--teal);
+}
+
+.org-receives .sparkle {
+    margin-right: 4px;
+}
+
+.org-receives span {
+    font-size: 1.4rem;
+    color: var(--teal);
+}
+
+/* Campaign Footer */
+.campaign-footer {
+    background: #1a1a2e;
+    padding: 32px 24px;
+}
+
+.campaign-footer .footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+}
+
+.campaign-footer .footer-links {
+    display: flex;
+    gap: 24px;
+}
+
+.campaign-footer .footer-links a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.campaign-footer .footer-links a:hover {
+    color: white;
+}
+
+/* Campaign Responsive */
+@media (max-width: 900px) {
+    .campaign-content {
+        grid-template-columns: 1fr;
+        margin-top: -40px;
+    }
+
+    .campaign-sidebar {
+        position: static;
+    }
+
+    .campaign-hero {
+        min-height: 400px;
+    }
+
+    .campaign-title {
+        font-size: 2rem;
+    }
+
+    .campaign-match-message {
+        font-size: 1rem;
+    }
+
+    .matchers-slider {
+        gap: 16px;
+    }
+
+    .matcher-card {
+        min-width: 80px;
+    }
+
+    .matcher-avatar {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+@media (max-width: 480px) {
+    .campaign-hero-content {
+        padding: 24px 16px 40px;
+    }
+
+    .campaign-title {
+        font-size: 1.6rem;
+        letter-spacing: 1px;
+    }
+
+    .progress-amount {
+        font-size: 1.8rem;
+    }
+
+    .campaign-progress-card,
+    .campaign-description,
+    .campaign-donation-card {
+        padding: 24px;
+        border-radius: 12px;
+    }
+
+    .campaign-footer .footer-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+}
