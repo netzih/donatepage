@@ -1,13 +1,14 @@
 <?php
 /**
  * Admin - Donation Actions API
- * Handles refund, delete, subscription management
+ * Handles refund, delete, subscription management, CiviCRM sync
  */
 
 session_start();
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
+require_once __DIR__ . '/../includes/civicrm.php';
 requireAdmin();
 
 header('Content-Type: application/json');
@@ -19,6 +20,37 @@ if (!$input || !verifyCsrfToken($input['csrf_token'] ?? '')) {
 }
 
 $action = $input['action'] ?? '';
+
+// Handle CiviCRM action separately (doesn't require Stripe)
+if ($action === 'sync_civicrm') {
+    $donationId = (int)($input['donation_id'] ?? 0);
+    
+    if (!$donationId) {
+        jsonResponse(['error' => 'Missing donation ID'], 400);
+    }
+    
+    if (getSetting('civicrm_enabled') !== '1') {
+        jsonResponse(['error' => 'CiviCRM integration is not enabled'], 400);
+    }
+    
+    $result = sync_donation_to_civicrm($donationId);
+    
+    if ($result['success']) {
+        jsonResponse([
+            'success' => true,
+            'message' => $result['already_synced'] 
+                ? 'Donation was already synced to CiviCRM'
+                : 'Donation synced to CiviCRM successfully!',
+            'contact_id' => $result['contact_id'],
+            'contribution_id' => $result['contribution_id'],
+            'contact_created' => $result['contact_created'] ?? false
+        ]);
+    } else {
+        jsonResponse(['error' => $result['error']], 500);
+    }
+}
+
+// Stripe actions require Stripe to be configured
 $stripeSecretKey = getSetting('stripe_sk');
 
 if (empty($stripeSecretKey)) {

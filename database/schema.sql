@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS `donations` (
     `transaction_id` VARCHAR(255),
     `status` VARCHAR(20) DEFAULT 'pending',
     `metadata` JSON,
+    `civicrm_contact_id` INT DEFAULT NULL,
+    `civicrm_contribution_id` INT DEFAULT NULL,
+    `civicrm_synced_at` TIMESTAMP NULL DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

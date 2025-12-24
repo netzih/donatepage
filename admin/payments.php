@@ -52,6 +52,7 @@ $csrfToken = generateCsrfToken();
                 <a href="settings.php">⚙️ Settings</a>
                 <a href="payments.php" class="active">💰 Payment Gateways</a>
                 <a href="emails.php">📧 Email Templates</a>
+                <a href="civicrm.php">🔗 CiviCRM</a>
                 <hr>
                 <a href="logout.php">🚪 Logout</a>
             </nav>

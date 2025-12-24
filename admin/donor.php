@@ -235,6 +235,7 @@ $csrfToken = generateCsrfToken();
                 <a href="settings.php">⚙️ Settings</a>
                 <a href="payments.php">💰 Payment Gateways</a>
                 <a href="emails.php">📧 Email Templates</a>
+                <a href="civicrm.php">🔗 CiviCRM</a>
                 <hr>
                 <a href="logout.php">🚪 Logout</a>
             </nav>
@@ -304,6 +305,9 @@ $csrfToken = generateCsrfToken();
                             <th>Type</th>
                             <th>Method</th>
                             <th>Status</th>
+                            <?php if (($settings['civicrm_enabled'] ?? '0') === '1'): ?>
+                            <th>CiviCRM</th>
+                            <?php endif; ?>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -316,6 +320,19 @@ $csrfToken = generateCsrfToken();
                             <td><?= ucfirst($d['frequency']) ?></td>
                             <td><?= ucfirst($d['payment_method']) ?></td>
                             <td><span class="status-<?= $d['status'] ?>"><?= ucfirst($d['status']) ?></span></td>
+                            <?php if (($settings['civicrm_enabled'] ?? '0') === '1'): ?>
+                            <td>
+                                <?php if (!empty($d['civicrm_contribution_id'])): ?>
+                                    <span style="color: #10b981;">✓ Synced</span>
+                                <?php elseif ($d['status'] === 'completed'): ?>
+                                    <button class="btn btn-sm" style="background: #8b5cf6; color: white;" onclick="syncToCiviCRM(<?= $d['id'] ?>)" id="sync-btn-<?= $d['id'] ?>">
+                                        🔗 Sync
+                                    </button>
+                                <?php else: ?>
+                                    <span style="color: #999;">-</span>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                             <td>
                                 <div class="action-btns">
                                     <?php if ($d['status'] === 'completed' && $d['payment_method'] === 'stripe'): ?>
@@ -511,6 +528,40 @@ $csrfToken = generateCsrfToken();
                 }
             } catch (err) {
                 alert('Failed to delete donation');
+            }
+        }
+        
+        async function syncToCiviCRM(donationId) {
+            const btn = document.getElementById('sync-btn-' + donationId);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Syncing...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('donation-actions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'sync_civicrm',
+                        donation_id: donationId,
+                        csrf_token: csrfToken
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    btn.outerHTML = '<span style="color: #10b981;">✓ Synced</span>';
+                    alert(result.message + (result.contact_created ? ' (New contact created)' : ''));
+                } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (err) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('Failed to sync to CiviCRM');
             }
         }
     </script>

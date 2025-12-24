@@ -42,7 +42,7 @@ Desktop.ini
 
 # Database dumps
 *.sql
-!database/schema.sql
+!database/*.sql
 
 # Temporary files
 *.tmp

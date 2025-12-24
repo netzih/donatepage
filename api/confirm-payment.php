@@ -8,6 +8,7 @@ session_start();
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
+require_once __DIR__ . '/../includes/civicrm.php';
 
 header('Content-Type: application/json');
 
@@ -129,6 +130,11 @@ try {
             sendDonorReceipt($donation);
             sendAdminNotification($donation);
             
+            // Auto-sync to CiviCRM if enabled
+            if (getSetting('civicrm_enabled') === '1' && getSetting('civicrm_sync_mode') === 'auto') {
+                sync_donation_to_civicrm($donation['id']);
+            }
+            
             jsonResponse([
                 'success' => true,
                 'donationId' => $donation['id'],
@@ -170,6 +176,11 @@ try {
             sendDonorReceipt($donation);
         }
         sendAdminNotification($donation);
+        
+        // Auto-sync to CiviCRM if enabled
+        if (getSetting('civicrm_enabled') === '1' && getSetting('civicrm_sync_mode') === 'auto') {
+            sync_donation_to_civicrm($donation['id']);
+        }
         
         jsonResponse([
             'success' => true,

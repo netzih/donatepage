@@ -38,6 +38,7 @@ $orgName = getSetting('org_name', 'Donation Platform');
                 <a href="settings.php">⚙️ Settings</a>
                 <a href="payments.php">💰 Payment Gateways</a>
                 <a href="emails.php">📧 Email Templates</a>
+                <a href="civicrm.php">🔗 CiviCRM</a>
                 <hr>
                 <a href="logout.php">🚪 Logout</a>
             </nav>
