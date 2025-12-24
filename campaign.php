@@ -317,6 +317,6 @@ if ($campaign) {
             matchingMultiplier: <?= $campaign ? $campaign['matching_multiplier'] : 1 ?>
         };
     </script>
-    <script src="/assets/js/campaign.js?v=1"></script>
+    <script src="/assets/js/campaign.js?v=2"></script>
 </body>
 </html>
