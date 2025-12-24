@@ -169,17 +169,25 @@ try {
             }
             
             // Create a Customer Portal session
-            // First, ensure customer portal is configured in Stripe Dashboard
-            $portalSession = \Stripe\BillingPortal\Session::create([
-                'customer' => $customerId,
-                'return_url' => APP_URL
-            ]);
+            // Note: Customer Portal must be configured in Stripe Dashboard first
+            // https://dashboard.stripe.com/settings/billing/portal
+            try {
+                $portalSession = \Stripe\BillingPortal\Session::create([
+                    'customer' => $customerId,
+                    'return_url' => APP_URL
+                ]);
+            } catch (\Stripe\Exception\InvalidRequestException $e) {
+                // Customer Portal not configured
+                jsonResponse([
+                    'error' => 'Stripe Customer Portal is not configured. Please enable it in your Stripe Dashboard: https://dashboard.stripe.com/settings/billing/portal'
+                ], 400);
+            }
             
             // Send email with the portal link
             $orgName = getSetting('org_name', 'Organization');
             $emailSubject = "Update Your Payment Method - $orgName";
             $emailBody = "
-            <p>Hello " . ($customer->name ?: 'Valued Donor') . ",</p>
+            <p>Hello " . htmlspecialchars($customer->name ?: 'Valued Donor') . ",</p>
             <p>You can update your payment method for your recurring donation by clicking the link below:</p>
             <p><a href=\"{$portalSession->url}\" style=\"display: inline-block; padding: 12px 24px; background: #20a39e; color: white; text-decoration: none; border-radius: 6px;\">Update Payment Method</a></p>
             <p>This link will expire in 24 hours.</p>
@@ -187,20 +195,23 @@ try {
             <p>Best regards,<br>$orgName</p>
             ";
             
-            // Send via PHPMailer
-            $mailer = getMailer();
-            if ($mailer) {
-                $mailer->addAddress($customer->email, $customer->name ?? '');
-                $mailer->Subject = $emailSubject;
-                $mailer->isHTML(true);
-                $mailer->Body = $emailBody;
-                $mailer->send();
-            }
+            // Include mail helper and send
+            require_once __DIR__ . '/../includes/mail.php';
+            $emailSent = sendEmail($customer->email, $emailSubject, $emailBody, $customer->name ?? '');
             
-            jsonResponse([
-                'success' => true,
-                'message' => 'Card update link sent to ' . $customer->email
-            ]);
+            if ($emailSent) {
+                jsonResponse([
+                    'success' => true,
+                    'message' => 'Card update link sent to ' . $customer->email
+                ]);
+            } else {
+                // Email failed but we can still show the link
+                jsonResponse([
+                    'success' => true,
+                    'message' => 'Email sending failed, but you can share this link directly: ' . $portalSession->url,
+                    'portal_url' => $portalSession->url
+                ]);
+            }
             break;
             
         default:
