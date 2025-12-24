@@ -116,12 +116,24 @@ try {
             'payment_method' => 'paypal',
             'transaction_id' => $order['id'],
             'status' => 'pending',
-            'metadata' => json_encode(['paypal_order_id' => $order['id']])
+            'metadata' => json_encode(['paypal_order_id' => $order['id'], 'campaign_id' => $campaignId])
         ];
-        if ($campaignId) {
-            $donationData['campaign_id'] = $campaignId;
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            // If failed due to campaign_id column, retry without it
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
         }
-        $donationId = db()->insert('donations', $donationData);
         
         // Store donation ID in session for later
         $_SESSION['pending_paypal_donation'] = $donationId;

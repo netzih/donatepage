@@ -64,13 +64,25 @@ try {
             'status' => 'pending',
             'metadata' => json_encode([
                 'setup_intent_id' => $setupIntent->id,
-                'type' => 'subscription'
+                'type' => 'subscription',
+                'campaign_id' => $campaignId
             ])
         ];
-        if ($campaignId) {
-            $donationData['campaign_id'] = $campaignId;
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
         }
-        $donationId = db()->insert('donations', $donationData);
         
         jsonResponse([
             'clientSecret' => $setupIntent->client_secret,
@@ -103,13 +115,25 @@ try {
             'status' => 'pending',
             'metadata' => json_encode([
                 'payment_intent_id' => $paymentIntent->id,
-                'type' => 'payment'
+                'type' => 'payment',
+                'campaign_id' => $campaignId
             ])
         ];
-        if ($campaignId) {
-            $donationData['campaign_id'] = $campaignId;
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
         }
-        $donationId = db()->insert('donations', $donationData);
         
         jsonResponse([
             'clientSecret' => $paymentIntent->client_secret,
