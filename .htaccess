@@ -49,7 +49,10 @@ RewriteRule ^includes/ - [F,L]
 RewriteRule ^database/ - [F,L]
 RewriteRule ^vendor/ - [F,L]
 
-# Block access to hidden files and directories
+# Block access to hidden files and directories (except for crawlers)
+RewriteCond %{HTTP_USER_AGENT} !facebookexternalhit [NC]
+RewriteCond %{HTTP_USER_AGENT} !Twitterbot [NC]
+RewriteCond %{HTTP_USER_AGENT} !LinkedInBot [NC]
 RewriteCond %{SCRIPT_FILENAME} -d [OR]
 RewriteCond %{SCRIPT_FILENAME} -f
 RewriteRule "(^|/)\." - [F]

@@ -28,6 +28,20 @@ $csrfToken = generateCsrfToken();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($orgName) ?> - Donate</title>
     <meta name="description" content="<?= h($tagline) ?> - Support our mission with a donation.">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= APP_URL ?>">
+    <meta property="og:title" content="<?= h($orgName) ?> - Donate">
+    <meta property="og:description" content="<?= h($tagline) ?> - Support our mission with a donation.">
+    <?php if ($bgPath): ?>
+    <meta property="og:image" content="<?= APP_URL . '/' . h($bgPath) ?>">
+    <?php endif; ?>
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= h($orgName) ?> - Donate">
+    <meta name="twitter:description" content="<?= h($tagline) ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
