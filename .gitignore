@@ -1,0 +1,19 @@
+# Ignore vendor directory
+/vendor/
+
+# Ignore uploaded files
+/assets/uploads/*
+!/assets/uploads/.gitkeep
+
+# Ignore config with sensitive data
+# includes/config.php
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,187 @@
+<?php
+/**
+ * Donation Success Page
+ */
+
+session_start();
+require_once __DIR__ . '/includes/functions.php';
+
+$settings = getAllSettings();
+$orgName = $settings['org_name'] ?? 'Organization';
+$logoPath = $settings['logo_path'] ?? '';
+
+$donation = null;
+$error = false;
+
+// Handle Stripe redirect
+if (!empty($_GET['session_id'])) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    
+    $stripeSecretKey = getSetting('stripe_sk');
+    if ($stripeSecretKey) {
+        try {
+            \Stripe\Stripe::setApiKey($stripeSecretKey);
+            $session = \Stripe\Checkout\Session::retrieve($_GET['session_id']);
+            
+            // Find and update donation
+            $donation = db()->fetch(
+                "SELECT * FROM donations WHERE transaction_id = ?",
+                [$_GET['session_id']]
+            );
+            
+            if ($donation && $donation['status'] === 'pending') {
+                $customerEmail = $session->customer_details->email ?? '';
+                $customerName = $session->customer_details->name ?? '';
+                
+                db()->update('donations', [
+                    'status' => 'completed',
+                    'donor_name' => $customerName,
+                    'donor_email' => $customerEmail,
+                    'transaction_id' => $session->payment_intent ?? $session->subscription ?? $session->id
+                ], 'id = ?', [$donation['id']]);
+                
+                // Refresh
+                $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
+                
+                // Send emails
+                require_once __DIR__ . '/includes/mail.php';
+                if (!empty($customerEmail)) {
+                    sendDonorReceipt($donation);
+                }
+                sendAdminNotification($donation);
+            }
+        } catch (Exception $e) {
+            error_log("Success page error: " . $e->getMessage());
+            $error = true;
+        }
+    }
+}
+
+// Handle PayPal redirect
+if (!empty($_GET['id'])) {
+    $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$_GET['id']]);
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You! - <?= h($orgName) ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+        .success-card {
+            background: white;
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            max-width: 500px;
+            color: #333;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #20a39e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 40px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        .tagline {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 32px;
+        }
+        .donation-details {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+        .donation-amount {
+            font-size: 36px;
+            font-weight: 900;
+            color: #20a39e;
+            margin-bottom: 8px;
+        }
+        .donation-type {
+            color: #666;
+            font-size: 14px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: #20a39e;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #1a8a86;
+        }
+        .logo {
+            margin-bottom: 24px;
+        }
+        .logo img {
+            max-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-card">
+        <?php if ($logoPath): ?>
+            <div class="logo">
+                <img src="<?= h($logoPath) ?>" alt="<?= h($orgName) ?>">
+            </div>
+        <?php endif; ?>
+        
+        <div class="success-icon">✓</div>
+        
+        <h1>Thank You!</h1>
+        <p class="tagline">Your generosity makes a difference</p>
+        
+        <?php if ($donation): ?>
+        <div class="donation-details">
+            <div class="donation-amount"><?= formatCurrency($donation['amount']) ?></div>
+            <div class="donation-type">
+                <?= $donation['frequency'] === 'monthly' ? 'Monthly Donation' : 'One-time Donation' ?>
+            </div>
+        </div>
+        
+        <p style="margin-bottom: 24px; color: #666; font-size: 14px;">
+            A confirmation email has been sent to your email address.
+        </p>
+        <?php else: ?>
+        <p style="margin-bottom: 24px; color: #666;">
+            Your donation has been processed successfully.
+        </p>
+        <?php endif; ?>
+        
+        <a href="/" class="btn">Return Home</a>
+    </div>
+</body>
+</html>
