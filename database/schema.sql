@@ -57,6 +57,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
 ON DUPLICATE KEY UPDATE setting_key = setting_key;
 
 -- Insert default admin (password: admin123 - CHANGE THIS!)
+-- Hash generated with: password_hash('admin123', PASSWORD_BCRYPT)
 INSERT INTO `admins` (`username`, `password`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')
-ON DUPLICATE KEY UPDATE username = username;
+('admin', '$2y$10$YMpJwT/rWxDzYPVT6Z3l0u2FhQv0l0C3Ae6Kxvj9pZW8tqeJQKvPq')
+ON DUPLICATE KEY UPDATE password = '$2y$10$YMpJwT/rWxDzYPVT6Z3l0u2FhQv0l0C3Ae6Kxvj9pZW8tqeJQKvPq';
