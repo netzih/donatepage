@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setSetting('tagline', trim($_POST['tagline'] ?? ''));
             setSetting('preset_amounts', trim($_POST['preset_amounts'] ?? '36,54,100,180,500,1000'));
             setSetting('currency_symbol', trim($_POST['currency_symbol'] ?? '$'));
+            setSetting('timezone', trim($_POST['timezone'] ?? 'America/Los_Angeles'));
             
             $success = 'Settings saved successfully!';
         } catch (Exception $e) {
@@ -128,8 +129,41 @@ $csrfToken = generateCsrfToken();
                                style="max-width: 100px;">
                     </div>
                 </section>
+
+                <section class="card">
+                    <h2>Regional Settings</h2>
+                    
+                    <div class="form-group">
+                        <label for="timezone">Application Timezone</label>
+                        <select id="timezone" name="timezone">
+                            <?php 
+                            $timezones = [
+                                'America/New_York' => 'Eastern Time (EST/EDT)',
+                                'America/Chicago' => 'Central Time (CST/CDT)',
+                                'America/Denver' => 'Mountain Time (MST/MDT)',
+                                'America/Phoenix' => 'Arizona (MST)',
+                                'America/Los_Angeles' => 'Pacific Time (PST/PDT)',
+                                'America/Anchorage' => 'Alaska Time',
+                                'America/Adak' => 'Hawaii-Aleutian Time',
+                                'Pacific/Honolulu' => 'Hawaii Time (HST)',
+                                'Europe/London' => 'London (GMT/BST)',
+                                'Europe/Paris' => 'Paris (CET/CEST)',
+                                'Israel' => 'Israel Time',
+                                'UTC' => 'UTC'
+                            ];
+                            $currentTz = $settings['timezone'] ?? 'America/Los_Angeles';
+                            foreach ($timezones as $tz_value => $tz_label): 
+                            ?>
+                                <option value="<?= h($tz_value) ?>" <?= $currentTz === $tz_value ? 'selected' : '' ?>>
+                                    <?= h($tz_label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small>This affects how donation times are recorded and displayed.</small>
+                    </div>
+                </section>
                 
-                <button type="submit" class="btn btn-primary">Save Settings</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Save Settings</button>
             </form>
             
             <section class="card" style="margin-top: 24px;">

@@ -5,8 +5,9 @@
 
 require_once __DIR__ . '/db.php';
 
-// Standardize timezone to PST
-date_default_timezone_set('America/Los_Angeles');
+// Standardize timezone from settings
+$tz = getSetting('timezone', 'America/Los_Angeles');
+date_default_timezone_set($tz);
 
 /**
  * Get a setting value from the database

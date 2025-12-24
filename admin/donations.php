@@ -73,6 +73,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    
+    if ($action === 'update_donation') {
+        $donationId = (int)$_POST['donation_id'];
+        $updateData = [
+            'donor_name' => trim($_POST['donor_name'] ?? ''),
+            'donor_email' => trim($_POST['donor_email'] ?? ''),
+            'amount' => (float)($_POST['amount'] ?? 0),
+            'is_matched' => isset($_POST['is_matched']) ? 1 : 0
+        ];
+        
+        // Optional fields that might not exist in older schemas
+        if (isset($_POST['display_name'])) $updateData['display_name'] = trim($_POST['display_name']);
+        if (isset($_POST['donation_message'])) $updateData['donation_message'] = trim($_POST['donation_message']);
+        if (isset($_POST['is_anonymous'])) $updateData['is_anonymous'] = isset($_POST['is_anonymous']) ? 1 : 0;
+        
+        try {
+            db()->update('donations', $updateData, 'id = ?', [$donationId]);
+            $success = 'Donation updated successfully!';
+        } catch (Exception $e) {
+            // Handle cases where some columns might be missing
+            unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+            try {
+                db()->update('donations', $updateData, 'id = ?', [$donationId]);
+                $success = 'Donation updated successfully (basic info only)!';
+            } catch (Exception $e2) {
+                $error = 'Failed to update donation: ' . $e2->getMessage();
+            }
+        }
+    }
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -529,6 +558,10 @@ $queryString = http_build_query($queryParams);
                                             View
                                         </a>
                                         <?php endif; ?>
+                                        
+                                        <button class="btn btn-xs btn-primary" onclick="editDonation(<?= h(json_encode($d)) ?>)">
+                                            Edit
+                                        </button>
                                         <?php if ($d['status'] === 'completed' && $d['payment_method'] === 'stripe'): ?>
                                         <button class="btn btn-xs btn-warning" onclick="refundDonation(<?= $d['id'] ?>, '<?= h($d['transaction_id']) ?>')">
                                             Refund
@@ -562,8 +595,77 @@ $queryString = http_build_query($queryParams);
         </main>
     </div>
     
+    <!-- Edit Donation Modal -->
+    <div id="edit-donation-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:white; padding:30px; border-radius:16px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto;">
+            <h2>Edit Donation</h2>
+            <form method="POST" style="margin-top: 20px;">
+                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                <input type="hidden" name="action" value="update_donation">
+                <input type="hidden" id="edit_donation_id" name="donation_id">
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_name">Donor Name *</label>
+                        <input type="text" id="edit_donor_name" name="donor_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_email">Donor Email</label>
+                        <input type="email" id="edit_donor_email" name="donor_email">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_amount">Amount ($)</label>
+                        <input type="number" id="edit_amount" name="amount" step="0.01" min="1" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_display_name">Display Name (Wall)</label>
+                        <input type="text" id="edit_display_name" name="display_name">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_donation_message">Wall Message</label>
+                    <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
+                        Make donation anonymous
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_matched" name="is_matched">
+                        <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                    <button type="button" onclick="document.getElementById('edit-donation-modal').style.display='none'" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
         const csrfToken = '<?= $csrfToken ?>';
+        
+        function editDonation(donation) {
+            document.getElementById('edit_donation_id').value = donation.id;
+            document.getElementById('edit_donor_name').value = donation.donor_name || '';
+            document.getElementById('edit_donor_email').value = donation.donor_email || '';
+            document.getElementById('edit_amount').value = donation.amount;
+            document.getElementById('edit_display_name').value = donation.display_name || '';
+            document.getElementById('edit_donation_message').value = donation.donation_message || '';
+            document.getElementById('edit_is_anonymous').checked = donation.is_anonymous == 1;
+            document.getElementById('edit_is_matched').checked = donation.is_matched == 1;
+            
+            document.getElementById('edit-donation-modal').style.display = 'flex';
+        }
         
         function toggleAmountFields() {
             const filter = document.getElementById('amountFilter').value;
