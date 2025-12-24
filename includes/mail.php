@@ -62,7 +62,7 @@ function sendEmail($to, $subject, $htmlBody, $toName = '') {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("Email send failed: " . $mail->ErrorInfo);
+        error_log("Email send failed to $to: " . $mail->ErrorInfo . " | Exception: " . $e->getMessage());
         return false;
     }
 }
@@ -83,6 +83,17 @@ function sendDonorReceipt($donation) {
         'transaction_id' => $donation['transaction_id'],
         'org_name' => getSetting('org_name')
     ];
+    
+    // Calculate matched amount if applicable
+    if (!empty($donation['is_matched']) && !empty($donation['campaign_id'])) {
+        require_once __DIR__ . '/campaigns.php';
+        $campaign = getCampaignById($donation['campaign_id']);
+        if ($campaign) {
+            $data['matched_amount'] = formatCurrency($donation['amount'] * $campaign['matching_multiplier']);
+        }
+    } else {
+        $data['matched_amount'] = $data['amount'];
+    }
     
     $body = parseTemplate($body, $data);
     $subject = parseTemplate($subject, $data);

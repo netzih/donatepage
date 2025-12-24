@@ -33,12 +33,22 @@ if (!empty($_GET['session_id'])) {
                 $customerEmail = $session->customer_details->email ?? '';
                 $customerName = $session->customer_details->name ?? '';
                 
-                db()->update('donations', [
+                $updateData = [
                     'status' => 'completed',
                     'donor_name' => $customerName,
                     'donor_email' => $customerEmail,
                     'transaction_id' => $session->payment_intent ?? $session->subscription ?? $session->id
-                ], 'id = ?', [$donation['id']]);
+                ];
+                
+                // Check if donation should be matched
+                if (!empty($donation['campaign_id'])) {
+                    $campaignInfo = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                    if ($campaignInfo && $campaignInfo['matching_enabled']) {
+                        $updateData['is_matched'] = 1;
+                    }
+                }
+                
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
                 
                 // Refresh
                 $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
@@ -60,6 +70,13 @@ if (!empty($_GET['session_id'])) {
 // Handle PayPal redirect
 if (!empty($_GET['id'])) {
     $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$_GET['id']]);
+}
+
+// Fetch campaign data if available
+$campaign = null;
+if ($donation && !empty($donation['campaign_id'])) {
+    require_once __DIR__ . '/includes/campaigns.php';
+    $campaign = getCampaignById($donation['campaign_id']);
 }
 ?>
 <!DOCTYPE html>
@@ -170,6 +187,15 @@ if (!empty($_GET['id'])) {
             <div class="donation-type">
                 <?= $donation['frequency'] === 'monthly' ? 'Monthly Donation' : 'One-time Donation' ?>
             </div>
+            
+            <?php if (!empty($donation['is_matched']) && $campaign): ?>
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <p style="color: #666; font-size: 14px; margin-bottom: 5px;">🔥 Thanks to our matchers, the organization receives:</p>
+                <div style="font-size: 24px; font-weight: 900; color: #20a39e;">
+                    <?= formatCurrency($donation['amount'] * $campaign['matching_multiplier']) ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         
         <p style="margin-bottom: 24px; color: #666; font-size: 14px;">

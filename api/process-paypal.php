@@ -182,12 +182,22 @@ try {
         $donation = db()->fetch("SELECT * FROM donations WHERE transaction_id = ?", [$orderId]);
         
         if ($donation) {
-            db()->update('donations', [
+            $updateData = [
                 'status' => 'completed',
                 'donor_name' => $payerName,
                 'donor_email' => $payerEmail,
                 'transaction_id' => $captureId ?: $orderId
-            ], 'id = ?', [$donation['id']]);
+            ];
+            
+            // Check if donation should be matched
+            if (!empty($donation['campaign_id'])) {
+                $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                if ($campaign && $campaign['matching_enabled']) {
+                    $updateData['is_matched'] = 1;
+                }
+            }
+            
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
             
             // Send emails
             require_once __DIR__ . '/../includes/mail.php';

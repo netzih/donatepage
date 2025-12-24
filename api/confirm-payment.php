@@ -131,6 +131,14 @@ try {
             if ($donationMessage) $updateData['donation_message'] = $donationMessage;
             $updateData['is_anonymous'] = $isAnonymous;
             
+            // Check if donation should be matched
+            if ($donation['campaign_id']) {
+                $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                if ($campaign && $campaign['matching_enabled']) {
+                    $updateData['is_matched'] = 1;
+                }
+            }
+            
             try {
                 db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
             } catch (Exception $e) {
@@ -188,6 +196,14 @@ try {
         if ($displayName) $updateData['display_name'] = $displayName;
         if ($donationMessage) $updateData['donation_message'] = $donationMessage;
         $updateData['is_anonymous'] = $isAnonymous;
+        
+        // Check if donation should be matched
+        if ($donation['campaign_id']) {
+            $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+            if ($campaign && $campaign['matching_enabled']) {
+                $updateData['is_matched'] = 1;
+            }
+        }
         
         try {
             db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
