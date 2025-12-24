@@ -395,14 +395,22 @@ body {
         transform: rotate(360deg);
     }
 }
+
 /* Payment Step Form */
 .payment-step {
     animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .payment-step .form-group {
@@ -499,4 +507,40 @@ body {
 #submit-payment:disabled {
     opacity: 0.7;
     cursor: wait;
+}
+
+/* Embed Mode - for iframe usage */
+body.embed-mode {
+    background: #fff;
+}
+
+body.embed-mode .page-wrapper {
+    min-height: auto;
+    background: transparent;
+    padding: 20px;
+}
+
+body.embed-mode .hero {
+    padding: 0;
+    min-height: auto;
+    display: block;
+}
+
+body.embed-mode .hero-content {
+    flex-direction: column;
+    max-width: 500px;
+    margin: 0 auto;
+    gap: 0;
+}
+
+body.embed-mode .donation-card {
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
+    border: 1px solid var(--border-light);
+}
+
+body.embed-mode .secure-badge {
+    text-align: center;
+    margin-top: 16px;
 }

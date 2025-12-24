@@ -20,6 +20,9 @@ $currencySymbol = $settings['currency_symbol'] ?? '$';
 
 // Generate CSRF token for API calls
 $csrfToken = generateCsrfToken();
+
+// Check for embed mode (for iframe usage)
+$embedMode = isset($_GET['embed']) && $_GET['embed'] == '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,11 +50,13 @@ $csrfToken = generateCsrfToken();
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=2">
 </head>
-<body>
-    <div class="page-wrapper" style="<?= $bgPath ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
+<body class="<?= $embedMode ? 'embed-mode' : '' ?>">
+    <div class="page-wrapper" style="<?= $bgPath && !$embedMode ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
+        <?php if (!$embedMode): ?>
         <div class="overlay"></div>
+        <?php endif; ?>
         
-        <nav class="navbar">
+        <?php if (!$embedMode): ?>
             <div class="nav-container">
                 <a href="/" class="logo">
                     <?php if ($logoPath): ?>
@@ -66,13 +71,16 @@ $csrfToken = generateCsrfToken();
                 </div>
             </div>
         </nav>
+        <?php endif; ?>
         
         <main class="hero">
             <div class="hero-content">
+                <?php if (!$embedMode): ?>
                 <div class="hero-text">
                     <h1><?= h(strtoupper($orgName)) ?></h1>
                     <p class="tagline"><em><?= h($tagline) ?></em></p>
                 </div>
+                <?php endif; ?>
                 
                 <div class="donation-card" id="donate">
                     <div class="card-step">AMOUNT • 1/2</div>
@@ -146,6 +154,7 @@ $csrfToken = generateCsrfToken();
             </div>
         </main>
         
+        <?php if (!$embedMode): ?>
         <footer class="footer">
             <div class="footer-content">
                 <p>&copy; <?= date('Y') ?> <?= h($orgName) ?>. All rights reserved.</p>
@@ -156,6 +165,7 @@ $csrfToken = generateCsrfToken();
                 </div>
             </div>
         </footer>
+        <?php endif; ?>
     </div>
     
     <?php if ($stripePk): ?>
