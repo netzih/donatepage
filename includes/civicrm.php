@@ -20,6 +20,9 @@ function civicrm_api4($entity, $action, $params = []) {
     // Build API4 endpoint URL
     $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
     
+    // Check SSL verification setting
+    $skipSsl = getSetting('civicrm_skip_ssl') === '1';
+    
     // Prepare request
     $ch = curl_init();
     
@@ -34,7 +37,8 @@ function civicrm_api4($entity, $action, $params = []) {
             'X-Civi-Key: ' . $siteKey
         ],
         CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => true
+        CURLOPT_SSL_VERIFYPEER => !$skipSsl,
+        CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2
     ]);
     
     $response = curl_exec($ch);

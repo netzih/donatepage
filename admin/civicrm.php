@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setSetting('civicrm_financial_type', (int)($_POST['civicrm_financial_type'] ?? 1));
             setSetting('civicrm_sync_mode', $_POST['civicrm_sync_mode'] ?? 'manual');
             setSetting('civicrm_enabled', isset($_POST['civicrm_enabled']) ? '1' : '0');
+            setSetting('civicrm_skip_ssl', isset($_POST['civicrm_skip_ssl']) ? '1' : '0');
             
             $success = 'CiviCRM settings saved successfully!';
         }
@@ -230,6 +231,15 @@ $csrfToken = generateCsrfToken();
                                min="1" style="width: 100px;">
                         <small>CiviCRM Financial Type ID (1 = Donation)</small>
                     </div>
+                    
+                    <div class="toggle-switch" style="margin-top: 20px;">
+                        <input type="checkbox" id="civicrm_skip_ssl" name="civicrm_skip_ssl" 
+                               <?= ($settings['civicrm_skip_ssl'] ?? '0') === '1' ? 'checked' : '' ?>>
+                        <label for="civicrm_skip_ssl">
+                            Skip SSL certificate verification
+                        </label>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 8px;">Enable this if you're getting SSL errors with Cloudflare or self-signed certificates. <strong>Not recommended for production.</strong></small>
                 </section>
                 
                 <section class="card">
