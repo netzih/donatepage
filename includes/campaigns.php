@@ -14,16 +14,22 @@ function getCampaignBySlug($slug) {
         return null;
     }
     
-    $campaign = db()->fetch(
-        "SELECT * FROM campaigns WHERE slug = ?",
-        [$slug]
-    );
-    
-    if (!$campaign) {
+    try {
+        $campaign = db()->fetch(
+            "SELECT * FROM campaigns WHERE slug = ?",
+            [$slug]
+        );
+        
+        if (!$campaign) {
+            return null;
+        }
+        
+        return enrichCampaign($campaign);
+    } catch (Exception $e) {
+        // Table may not exist yet - return null gracefully
+        error_log("Campaign lookup error: " . $e->getMessage());
         return null;
     }
-    
-    return enrichCampaign($campaign);
 }
 
 /**
