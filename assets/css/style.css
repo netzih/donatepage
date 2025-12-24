@@ -1122,3 +1122,146 @@ body.campaign-page {
         text-align: center;
     }
 }
+
+/* ========================================
+   CAMPAIGN TABS STYLES
+   ======================================== */
+
+/* Tab Navigation */
+.campaign-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+    padding: 16px 24px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.tab-btn:hover {
+    color: var(--teal);
+}
+
+.tab-btn.active {
+    color: var(--teal);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--teal);
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Donations List */
+.donations-list {
+    padding: 20px 0;
+}
+
+.donation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.donation-item:last-child {
+    border-bottom: none;
+}
+
+.donation-info {
+    flex: 1;
+}
+
+.donor-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 15px;
+}
+
+.donation-message {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.donation-amount {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--teal);
+}
+
+.no-donations {
+    padding: 40px 20px;
+    text-align: center;
+    color: #888;
+}
+
+/* Form Textarea */
+.payment-step textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.payment-step textarea:focus {
+    border-color: var(--teal);
+}
+
+/* Checkbox Group */
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--teal);
+}
+
+/* Form Hint */
+.form-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #888;
+}

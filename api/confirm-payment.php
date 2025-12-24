@@ -23,6 +23,9 @@ $mode = $input['mode'] ?? 'payment';
 $intentId = $input['intent_id'] ?? $input['payment_intent_id'] ?? '';
 $donorName = trim($input['donor_name'] ?? '');
 $donorEmail = trim($input['donor_email'] ?? '');
+$displayName = trim($input['display_name'] ?? '');
+$donationMessage = trim($input['donation_message'] ?? '');
+$isAnonymous = !empty($input['is_anonymous']) ? 1 : 0;
 $amount = (float)($input['amount'] ?? 0);
 
 if (empty($intentId)) {
@@ -111,7 +114,7 @@ try {
         );
         
         if ($donation) {
-            db()->update('donations', [
+            $updateData = [
                 'status' => 'completed',
                 'donor_name' => $donorName,
                 'donor_email' => $donorEmail,
@@ -121,7 +124,20 @@ try {
                     'customer_id' => $customer->id,
                     'type' => 'subscription'
                 ])
-            ], 'id = ?', [$donation['id']]);
+            ];
+            
+            // Add optional display fields (gracefully handle missing columns)
+            if ($displayName) $updateData['display_name'] = $displayName;
+            if ($donationMessage) $updateData['donation_message'] = $donationMessage;
+            $updateData['is_anonymous'] = $isAnonymous;
+            
+            try {
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+            } catch (Exception $e) {
+                // If columns don't exist, update without them
+                unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+            }
             
             // Refresh donation data
             $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
@@ -162,11 +178,24 @@ try {
             jsonResponse(['error' => 'Donation record not found'], 404);
         }
         
-        db()->update('donations', [
+        $updateData = [
             'status' => 'completed',
             'donor_name' => $donorName,
             'donor_email' => $donorEmail
-        ], 'id = ?', [$donation['id']]);
+        ];
+        
+        // Add optional display fields (gracefully handle missing columns)
+        if ($displayName) $updateData['display_name'] = $displayName;
+        if ($donationMessage) $updateData['donation_message'] = $donationMessage;
+        $updateData['is_anonymous'] = $isAnonymous;
+        
+        try {
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+        } catch (Exception $e) {
+            // If columns don't exist, update without them
+            unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+        }
         
         // Refresh donation data
         $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);

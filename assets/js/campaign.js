@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const paymentMessage = document.getElementById('payment-message');
     const donorName = document.getElementById('donor-name');
     const donorEmail = document.getElementById('donor-email');
+    const displayName = document.getElementById('display-name');
+    const donationMessageInput = document.getElementById('donation-message');
+    const isAnonymous = document.getElementById('is-anonymous');
 
     // Matching display elements
     const donationAmountEl = document.getElementById('donation-amount');
@@ -249,6 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             intent_id: intentId,
                             donor_name: donorName.value.trim(),
                             donor_email: donorEmail.value.trim(),
+                            display_name: displayName ? displayName.value.trim() : '',
+                            donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                            is_anonymous: isAnonymous ? isAnonymous.checked : false,
                             amount: selectedAmount,
                             campaign_id: campaignId
                         })
@@ -374,6 +380,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target) {
                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+        });
+    });
+
+    // Tab switching functionality
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+
+            // Update button states
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update content visibility
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === 'tab-' + tabId) {
+                    content.classList.add('active');
+                }
+            });
         });
     });
 

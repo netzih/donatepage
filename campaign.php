@@ -53,6 +53,24 @@ if ($campaign) {
     $end = strtotime($campaign['end_date'] . ' 23:59:59');
     $isActive = $campaign['is_active'] && $now >= $start && $now <= $end;
 }
+
+// Get campaign donations for public display
+$campaignDonations = [];
+if ($campaign) {
+    try {
+        $campaignDonations = db()->fetchAll(
+            "SELECT donor_name, display_name, amount, donation_message, is_anonymous, created_at 
+             FROM donations 
+             WHERE campaign_id = ? AND status = 'completed' 
+             ORDER BY created_at DESC 
+             LIMIT 100",
+            [$campaign['id']]
+        );
+    } catch (Exception $e) {
+        // Column may not exist yet
+        $campaignDonations = [];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -172,21 +190,58 @@ if ($campaign) {
                 </div>
             </div>
             
-            <!-- Campaign Description -->
-            <div class="campaign-description">
-                <h2>About This Campaign</h2>
-                <div class="description-content">
-                    <?= $campaign['description'] ?>
+            <!-- Campaign Tabs -->
+            <div class="campaign-tabs">
+                <button class="tab-btn active" data-tab="about">ABOUT</button>
+                <button class="tab-btn" data-tab="donations">DONATIONS (<?= count($campaignDonations) ?>)</button>
+            </div>
+            
+            <!-- About Tab Content -->
+            <div class="tab-content active" id="tab-about">
+                <div class="campaign-description">
+                    <div class="description-content">
+                        <?= $campaign['description'] ?>
+                    </div>
+                    
+                    <?php if ($campaign['matching_enabled']): ?>
+                    <div class="matching-explanation">
+                        <h3>✨ How Matching Works</h3>
+                        <p>Thanks to our generous matchers, every dollar you donate is multiplied by <?= $campaign['matching_multiplier'] ?>x! 
+                        Your <strong><?= h($currencySymbol) ?>100</strong> donation means the organization receives 
+                        <strong><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></strong>.</p>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                
-                <?php if ($campaign['matching_enabled']): ?>
-                <div class="matching-explanation">
-                    <h3>✨ How Matching Works</h3>
-                    <p>Thanks to our generous matchers, every dollar you donate is multiplied by <?= $campaign['matching_multiplier'] ?>x! 
-                    Your <strong><?= h($currencySymbol) ?>100</strong> donation means the organization receives 
-                    <strong><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></strong>.</p>
+            </div>
+            
+            <!-- Donations Tab Content -->
+            <div class="tab-content" id="tab-donations">
+                <div class="donations-list">
+                    <?php if (empty($campaignDonations)): ?>
+                    <div class="no-donations">
+                        <p>Be the first to donate to this campaign!</p>
+                    </div>
+                    <?php else: ?>
+                    <?php foreach ($campaignDonations as $don): ?>
+                    <?php 
+                        // Determine display name: anonymous > display_name > donor_name
+                        $showName = 'Anonymous';
+                        if (empty($don['is_anonymous'])) {
+                            $showName = !empty($don['display_name']) ? $don['display_name'] : ($don['donor_name'] ?: 'Anonymous');
+                        }
+                    ?>
+                    <div class="donation-item">
+                        <div class="donation-info">
+                            <span class="donor-name"><?= h($showName) ?></span>
+                            <?php if (!empty($don['donation_message'])): ?>
+                            <p class="donation-message"><?= h($don['donation_message']) ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="donation-amount"><?= h($currencySymbol) ?><?= number_format($don['amount']) ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
             </div>
         </div>
         
@@ -244,6 +299,24 @@ if ($campaign) {
                     <div class="form-group">
                         <label for="donor-email">Email</label>
                         <input type="email" id="donor-email" placeholder="john@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="display-name">Display Name (shown publicly)</label>
+                        <input type="text" id="display-name" placeholder="How you'd like your name to appear">
+                        <small class="form-hint">Leave blank to use your full name, or enter how you'd like to be listed</small>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="is-anonymous">
+                            Donate anonymously (hide my name from public list)
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="donation-message">Message / Dedication (Optional)</label>
+                        <textarea id="donation-message" placeholder="Leave a message or dedication..." rows="2" maxlength="500"></textarea>
                     </div>
                     
                     <?php if ($stripePk): ?>
