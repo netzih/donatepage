@@ -73,7 +73,7 @@ if ($campaign) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=3">
+    <link rel="stylesheet" href="/assets/css/style.css?v=3">
 </head>
 <body class="campaign-page">
     <?php if ($error): ?>
@@ -311,6 +311,6 @@ if ($campaign) {
             matchingMultiplier: <?= $campaign ? $campaign['matching_multiplier'] : 1 ?>
         };
     </script>
-    <script src="assets/js/campaign.js?v=1"></script>
+    <script src="/assets/js/campaign.js?v=1"></script>
 </body>
 </html>
