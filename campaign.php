@@ -90,7 +90,7 @@ if ($campaign) {
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
 <body class="campaign-page">
@@ -131,8 +131,6 @@ if ($campaign) {
             <div class="campaign-title-section">
                 <?php if (!$isActive): ?>
                 <div class="campaign-status-badge">Campaign Ended</div>
-                <?php elseif ($campaign['matching_enabled']): ?>
-                <div class="campaign-match-badge">🔥 Matching Active!</div>
                 <?php endif; ?>
                 
                 <h1 class="campaign-title"><?= h(strtoupper($campaign['title'])) ?></h1>

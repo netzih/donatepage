@@ -17,7 +17,7 @@
 }
 
 body {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Inter', 'Montserrat', sans-serif;
     color: var(--text-dark);
     line-height: 1.6;
 }
@@ -936,11 +936,13 @@ body.campaign-page {
 
 .description-content {
     line-height: 1.8;
-    color: #444;
+    color: #333;
+    font-size: 16px;
+    letter-spacing: 0.01em;
 }
 
 .description-content p {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .matching-explanation {
@@ -1061,11 +1063,14 @@ body.campaign-page {
 /* Campaign Responsive */
 @media (max-width: 900px) {
     .campaign-content {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         margin-top: -40px;
+        gap: 24px;
     }
 
     .campaign-sidebar {
+        order: -1;
         position: static;
     }
 
