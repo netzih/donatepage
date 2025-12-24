@@ -17,6 +17,18 @@ $error = '';
 $action = $_GET['action'] ?? 'list';
 $campaignId = (int)($_GET['id'] ?? 0);
 
+// Handle success messages from redirects
+if (isset($_GET['success'])) {
+    switch ($_GET['success']) {
+        case 'created':
+            $success = 'Campaign created successfully!';
+            break;
+        case 'deleted':
+            $success = 'Campaign deleted successfully!';
+            break;
+    }
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -44,8 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'end_date' => $_POST['end_date'],
                         'is_active' => isset($_POST['is_active'])
                     ]);
-                    $success = 'Campaign created successfully!';
-                    $action = 'list';
+                    // Redirect to prevent form resubmission
+                    header('Location: /admin/campaigns?success=created');
+                    exit;
                 } catch (Exception $e) {
                     $error = 'Failed to create campaign: ' . $e->getMessage();
                 }
@@ -82,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'delete':
                 try {
                     deleteCampaign($_POST['campaign_id']);
-                    $success = 'Campaign deleted successfully!';
-                    $action = 'list';
+                    header('Location: /admin/campaigns?success=deleted');
+                    exit;
                 } catch (Exception $e) {
                     $error = 'Failed to delete campaign: ' . $e->getMessage();
                 }
