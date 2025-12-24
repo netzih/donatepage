@@ -7,6 +7,30 @@ session_start();
 require_once __DIR__ . '/../includes/functions.php';
 requireAdmin();
 
+$csrfToken = generateCsrfToken();
+
+// Handle POST actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        die('Invalid request');
+    }
+    
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'assign_campaign') {
+        $donationId = (int)$_POST['donation_id'];
+        $campaignId = $_POST['campaign_id'] === '' ? null : (int)$_POST['campaign_id'];
+        
+        try {
+            db()->update('donations', ['campaign_id' => $campaignId], 'id = ?', [$donationId]);
+            header('Location: ' . $_SERVER['REQUEST_URI']);
+            exit;
+        } catch (Exception $e) {
+            $error = 'Failed to assign campaign: ' . $e->getMessage();
+        }
+    }
+}
+
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
@@ -19,6 +43,11 @@ $dateFilter = $_GET['date_filter'] ?? '';
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
+$campaignFilter = $_GET['campaign'] ?? '';
+
+// Get all campaigns for filter dropdown
+require_once __DIR__ . '/../includes/campaigns.php';
+$allCampaigns = getAllCampaigns(true);
 
 // Build WHERE clause
 // Exclude deleted donations and anonymous pending donations (no name)
@@ -93,6 +122,14 @@ if ($statusFilter) {
     $params[] = $statusFilter;
 }
 
+// Campaign filter
+if ($campaignFilter === 'none') {
+    $where[] = "(campaign_id IS NULL OR campaign_id = 0)";
+} elseif ($campaignFilter !== '') {
+    $where[] = "campaign_id = ?";
+    $params[] = (int)$campaignFilter;
+}
+
 $whereClause = implode(' AND ', $where);
 
 // Get totals
@@ -116,7 +153,6 @@ $filteredTotal = db()->fetch(
 )['total'] ?? 0;
 
 $settings = getAllSettings();
-$csrfToken = generateCsrfToken();
 
 // Build query string for pagination
 $queryParams = $_GET;
@@ -311,9 +347,21 @@ $queryString = http_build_query($queryParams);
                             </select>
                         </div>
                         
+                        <!-- Campaign Filter -->
+                        <div class="filter-group">
+                            <label>Campaign</label>
+                            <select name="campaign">
+                                <option value="">All Donations</option>
+                                <option value="none" <?= $campaignFilter === 'none' ? 'selected' : '' ?>>No Campaign</option>
+                                <?php foreach ($allCampaigns as $c): ?>
+                                <option value="<?= $c['id'] ?>" <?= $campaignFilter == $c['id'] ? 'selected' : '' ?>><?= h($c['title']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
                         <div class="filter-actions">
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
-                            <?php if ($amountFilter || $dateFilter || $statusFilter): ?>
+                            <?php if ($amountFilter || $dateFilter || $statusFilter || $campaignFilter): ?>
                             <a href="donations.php" class="clear-filters">Clear All</a>
                             <?php endif; ?>
                         </div>
@@ -343,6 +391,7 @@ $queryString = http_build_query($queryParams);
                             <th>Donor</th>
                             <th>Email</th>
                             <th>Amount</th>
+                            <th>Campaign</th>
                             <th>Type</th>
                             <th>Method</th>
                             <th>Status</th>
@@ -351,7 +400,7 @@ $queryString = http_build_query($queryParams);
                     </thead>
                     <tbody>
                         <?php if (empty($donations)): ?>
-                            <tr><td colspan="9" class="empty">No donations match your filters</td></tr>
+                            <tr><td colspan="10" class="empty">No donations match your filters</td></tr>
                         <?php else: ?>
                             <?php foreach ($donations as $d): ?>
                             <tr id="donation-<?= $d['id'] ?>">
@@ -376,6 +425,32 @@ $queryString = http_build_query($queryParams);
                                     <?php endif; ?>
                                 </td>
                                 <td><strong><?= formatCurrency($d['amount']) ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $donationCampaign = null;
+                                    if (!empty($d['campaign_id'])) {
+                                        foreach ($allCampaigns as $c) {
+                                            if ($c['id'] == $d['campaign_id']) {
+                                                $donationCampaign = $c;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <form method="POST" style="display:inline;" onchange="this.submit()">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                        <input type="hidden" name="action" value="assign_campaign">
+                                        <input type="hidden" name="donation_id" value="<?= $d['id'] ?>">
+                                        <select name="campaign_id" style="font-size:12px; padding:2px 4px;">
+                                            <option value="">-- None --</option>
+                                            <?php foreach ($allCampaigns as $c): ?>
+                                            <option value="<?= $c['id'] ?>" <?= ($d['campaign_id'] ?? 0) == $c['id'] ? 'selected' : '' ?>>
+                                                <?= h(substr($c['title'], 0, 20)) ?><?= strlen($c['title']) > 20 ? '...' : '' ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </form>
+                                </td>
                                 <td>
                                     <?= ucfirst($d['frequency']) ?>
                                     <?php if ($d['frequency'] === 'monthly'): ?>
