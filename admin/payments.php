@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Stripe settings
         setSetting('stripe_pk', trim($_POST['stripe_pk'] ?? ''));
         setSetting('stripe_sk', trim($_POST['stripe_sk'] ?? ''));
+        setSetting('stripe_account_id', trim($_POST['stripe_account_id'] ?? ''));
         
         // PayPal settings
         setSetting('paypal_client_id', trim($_POST['paypal_client_id'] ?? ''));
@@ -92,6 +93,14 @@ $csrfToken = generateCsrfToken();
                                value="<?= h($settings['stripe_sk'] ?? '') ?>"
                                placeholder="sk_test_...">
                         <small>Starts with sk_test_ (test) or sk_live_ (production)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="stripe_account_id">Connected Account ID (Optional)</label>
+                        <input type="text" id="stripe_account_id" name="stripe_account_id" 
+                               value="<?= h($settings['stripe_account_id'] ?? '') ?>"
+                               placeholder="acct_...">
+                        <small>Only needed if using Stripe Connect or Organization API keys. Find in Stripe Dashboard > Connect > Accounts</small>
                     </div>
                 </section>
                 

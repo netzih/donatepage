@@ -31,6 +31,7 @@ if ($amount < 1) {
 
 // Get Stripe keys
 $stripeSecretKey = getSetting('stripe_sk');
+$stripeAccountId = getSetting('stripe_account_id'); // Optional: for Stripe Connect
 
 if (empty($stripeSecretKey)) {
     jsonResponse(['error' => 'Stripe is not configured'], 500);
@@ -38,6 +39,12 @@ if (empty($stripeSecretKey)) {
 
 try {
     \Stripe\Stripe::setApiKey($stripeSecretKey);
+    
+    // Set connected account if using Stripe Connect / Organization keys
+    $requestOptions = [];
+    if (!empty($stripeAccountId)) {
+        $requestOptions['stripe_account'] = $stripeAccountId;
+    }
     
     $orgName = getSetting('org_name', 'Donation');
     $currencySymbol = getSetting('currency_symbol', '$');
@@ -73,7 +80,7 @@ try {
         ];
     }
     
-    $checkoutSession = \Stripe\Checkout\Session::create($sessionParams);
+    $checkoutSession = \Stripe\Checkout\Session::create($sessionParams, $requestOptions);
     
     // Store pending donation in database
     $donationId = db()->insert('donations', [
