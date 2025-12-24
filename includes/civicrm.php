@@ -21,8 +21,9 @@ function civicrm_api4($entity, $action, $params = []) {
     // Build API4 endpoint URL based on CMS platform
     switch ($platform) {
         case 'wordpress':
-            // WordPress uses the civiwp query format
+            // WordPress uses the civiwp query format with API credentials as query params
             $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/api4/' . $entity . '/' . $action;
+            $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
             break;
         case 'drupal':
         case 'standalone':
