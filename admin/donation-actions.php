@@ -147,11 +147,9 @@ try {
                 'proration_behavior' => 'none' // Don't prorate, just change going forward
             ]);
             
-            // Update donation record
-            db()->query(
-                "UPDATE donations SET amount = ? WHERE transaction_id = ?",
-                [$newAmount, $subscriptionId]
-            );
+            // Note: We do NOT update past donation records - they should reflect 
+            // the actual amount that was charged at the time. The new amount will
+            // be recorded when the next subscription payment is processed via webhook.
             
             jsonResponse(['success' => true, 'new_amount' => $newAmount]);
             break;

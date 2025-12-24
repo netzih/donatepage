@@ -30,8 +30,13 @@ if (empty($donations)) {
 // Get donor info from first donation
 $donorName = $donations[0]['donor_name'] ?? 'Unknown';
 $firstDonation = end($donations);
-$totalDonated = array_sum(array_column($donations, 'amount'));
-$donationCount = count($donations);
+
+// Calculate totals - exclude refunded, cancelled, and deleted donations
+$completedDonations = array_filter($donations, function($d) {
+    return $d['status'] === 'completed';
+});
+$totalDonated = array_sum(array_column($completedDonations, 'amount'));
+$donationCount = count($completedDonations);
 
 // Check for active subscriptions
 $activeSubscriptions = array_filter($donations, function($d) {
