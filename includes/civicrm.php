@@ -21,8 +21,8 @@ function civicrm_api4($entity, $action, $params = []) {
     // Build API4 endpoint URL based on CMS platform
     switch ($platform) {
         case 'wordpress':
-            // WordPress REST API endpoint
-            $url = $baseUrl . '/wp-json/civicrm/v3/rest?entity=' . $entity . '&action=' . $action . '&json=' . urlencode(json_encode($params));
+            // WordPress uses the civiwp query format
+            $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/api4/' . $entity . '/' . $action;
             break;
         case 'drupal':
         case 'standalone':
@@ -52,25 +52,14 @@ function civicrm_api4($entity, $action, $params = []) {
         CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2
     ];
     
-    // Platform-specific request configuration
-    if ($platform === 'wordpress') {
-        // WordPress uses GET with api_key parameter
-        $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
-        $options[CURLOPT_URL] = $url;
-        $options[CURLOPT_HTTPGET] = true;
-        $options[CURLOPT_HTTPHEADER] = [
-            'Content-Type: application/json'
-        ];
-    } else {
-        // Drupal/Joomla/Standalone use POST with headers
-        $options[CURLOPT_POST] = true;
-        $options[CURLOPT_POSTFIELDS] = json_encode($params);
-        $options[CURLOPT_HTTPHEADER] = [
-            'Content-Type: application/json',
-            'X-Civi-Auth: Bearer ' . $apiKey,
-            'X-Civi-Key: ' . $siteKey
-        ];
-    }
+    // All platforms use POST with JSON body and auth headers
+    $options[CURLOPT_POST] = true;
+    $options[CURLOPT_POSTFIELDS] = json_encode($params);
+    $options[CURLOPT_HTTPHEADER] = [
+        'Content-Type: application/json',
+        'X-Civi-Auth: Bearer ' . $apiKey,
+        'X-Civi-Key: ' . $siteKey
+    ];
     
     curl_setopt_array($ch, $options);
     
