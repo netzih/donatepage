@@ -34,9 +34,10 @@ CREATE TABLE IF NOT EXISTS `campaign_matchers` (
     INDEX `idx_campaign` (`campaign_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Add campaign_id to donations table
-ALTER TABLE `donations` ADD COLUMN IF NOT EXISTS `campaign_id` INT DEFAULT NULL;
-ALTER TABLE `donations` ADD INDEX IF NOT EXISTS `idx_campaign` (`campaign_id`);
+-- Add campaign_id to donations table (ignore error if already exists)
+-- Run these individually if you get an error:
+ALTER TABLE `donations` ADD COLUMN `campaign_id` INT DEFAULT NULL;
+ALTER TABLE `donations` ADD INDEX `idx_campaign` (`campaign_id`);
 
 -- Note: Foreign key constraint is optional to avoid issues with existing data
 -- You can add it manually if desired:
