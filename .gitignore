@@ -1,19 +1,49 @@
-# Ignore vendor directory
+# Dependencies
 /vendor/
 
-# Ignore uploaded files
+# Uploaded files (keep directory structure)
 /assets/uploads/*
 !/assets/uploads/.gitkeep
 
-# Ignore config with sensitive data
-# includes/config.php
+# Environment and config with secrets
+.env
+.env.*
+includes/config.local.php
 
-# IDE files
+# Logs
+*.log
+error_log
+
+# IDE and editors
 .idea/
 .vscode/
+*.sublime-project
+*.sublime-workspace
 *.swp
 *.swo
+*~
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Database dumps
+*.sql
+!database/schema.sql
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
