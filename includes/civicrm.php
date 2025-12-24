@@ -56,6 +56,9 @@ function civicrm_api4($entity, $action, $params = []) {
     // Check SSL verification setting
     $skipSsl = getSetting('civicrm_skip_ssl') === '1';
     
+    // Debug: Log the URL being called (remove after debugging)
+    error_log("CiviCRM API URL: " . $url);
+    
     // Prepare request
     $ch = curl_init();
     
