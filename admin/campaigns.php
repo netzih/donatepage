@@ -65,23 +65,7 @@ $settings = getAllSettings();
 </head>
 <body>
     <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><?= h($settings['org_name'] ?? 'Donation Platform') ?></h2>
-                <span>Admin Panel</span>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/admin">📊 Dashboard</a>
-                <a href="/admin/donations">💳 Donations</a>
-                <a href="/admin/campaigns" class="active">📣 Campaigns</a>
-                <a href="/admin/settings">⚙️ Settings</a>
-                <a href="/admin/payments">💰 Payment Gateways</a>
-                <a href="/admin/emails">📧 Email Templates</a>
-                <a href="/admin/civicrm">🔗 CiviCRM</a>
-                <hr>
-                <a href="/admin/logout">🚪 Logout</a>
-            </nav>
-        </aside>
+        <?php $currentPage = 'campaigns'; include 'includes/sidebar.php'; ?>
         
         <main class="main-content">
             <header class="content-header">
