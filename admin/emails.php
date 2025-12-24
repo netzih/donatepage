@@ -4,34 +4,137 @@
  */
 
 session_start();
+require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/functions.php';
 requireAdmin();
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
 $success = '';
 $error = '';
+$testResult = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request.';
     } else {
-        // SMTP settings
-        setSetting('smtp_host', trim($_POST['smtp_host'] ?? ''));
-        setSetting('smtp_port', trim($_POST['smtp_port'] ?? '587'));
-        setSetting('smtp_user', trim($_POST['smtp_user'] ?? ''));
-        if (!empty($_POST['smtp_pass'])) {
-            setSetting('smtp_pass', $_POST['smtp_pass']);
+        $action = $_POST['action'] ?? 'save';
+        
+        if ($action === 'test') {
+            // Test SMTP connection
+            $testEmail = trim($_POST['test_email'] ?? '');
+            if (empty($testEmail)) {
+                $testResult = ['success' => false, 'message' => 'Please enter a test email address.'];
+            } else {
+                $testResult = testSmtpConnection($testEmail);
+            }
+        } else {
+            // Save settings
+            setSetting('smtp_host', trim($_POST['smtp_host'] ?? ''));
+            setSetting('smtp_port', trim($_POST['smtp_port'] ?? '587'));
+            setSetting('smtp_user', trim($_POST['smtp_user'] ?? ''));
+            if (!empty($_POST['smtp_pass'])) {
+                setSetting('smtp_pass', $_POST['smtp_pass']);
+            }
+            setSetting('smtp_from_email', trim($_POST['smtp_from_email'] ?? ''));
+            setSetting('smtp_from_name', trim($_POST['smtp_from_name'] ?? ''));
+            setSetting('admin_email', trim($_POST['admin_email'] ?? ''));
+            
+            // Email templates
+            setSetting('email_donor_subject', trim($_POST['email_donor_subject'] ?? ''));
+            setSetting('email_donor_body', $_POST['email_donor_body'] ?? '');
+            setSetting('email_admin_subject', trim($_POST['email_admin_subject'] ?? ''));
+            setSetting('email_admin_body', $_POST['email_admin_body'] ?? '');
+            
+            $success = 'Email settings saved successfully!';
         }
-        setSetting('smtp_from_email', trim($_POST['smtp_from_email'] ?? ''));
-        setSetting('smtp_from_name', trim($_POST['smtp_from_name'] ?? ''));
-        setSetting('admin_email', trim($_POST['admin_email'] ?? ''));
+    }
+}
+
+function testSmtpConnection($testEmail) {
+    $mail = new PHPMailer(true);
+    
+    try {
+        // Get SMTP settings
+        $smtpHost = getSetting('smtp_host');
+        $smtpPort = getSetting('smtp_port', 587);
+        $smtpUser = getSetting('smtp_user');
+        $smtpPass = getSetting('smtp_pass');
+        $fromEmail = getSetting('smtp_from_email');
+        $fromName = getSetting('smtp_from_name', 'Donation Platform');
+        $orgName = getSetting('org_name', 'Donation Platform');
         
-        // Email templates
-        setSetting('email_donor_subject', trim($_POST['email_donor_subject'] ?? ''));
-        setSetting('email_donor_body', $_POST['email_donor_body'] ?? '');
-        setSetting('email_admin_subject', trim($_POST['email_admin_subject'] ?? ''));
-        setSetting('email_admin_body', $_POST['email_admin_body'] ?? '');
+        // Check required settings
+        if (empty($smtpHost)) {
+            return ['success' => false, 'message' => 'SMTP Host is not configured.'];
+        }
+        if (empty($smtpUser)) {
+            return ['success' => false, 'message' => 'SMTP Username is not configured.'];
+        }
+        if (empty($smtpPass)) {
+            return ['success' => false, 'message' => 'SMTP Password is not configured.'];
+        }
+        if (empty($fromEmail)) {
+            return ['success' => false, 'message' => 'From Email is not configured.'];
+        }
         
-        $success = 'Email settings saved successfully!';
+        // Enable verbose debug output
+        $mail->SMTPDebug = SMTP::DEBUG_SERVER;
+        $debugOutput = '';
+        $mail->Debugoutput = function($str, $level) use (&$debugOutput) {
+            $debugOutput .= $str . "\n";
+        };
+        
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = (int)$smtpPort;
+        $mail->Timeout = 10;
+        
+        // Recipients
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($testEmail);
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = "SMTP Test - $orgName";
+        $mail->Body = "
+            <h2>SMTP Test Successful!</h2>
+            <p>This is a test email from your donation platform.</p>
+            <p>If you're receiving this, your SMTP settings are configured correctly.</p>
+            <hr>
+            <p><strong>Settings Used:</strong></p>
+            <ul>
+                <li>Host: $smtpHost</li>
+                <li>Port: $smtpPort</li>
+                <li>Username: $smtpUser</li>
+                <li>From: $fromEmail</li>
+            </ul>
+            <p>Sent at: " . date('Y-m-d H:i:s') . "</p>
+        ";
+        $mail->AltBody = "SMTP Test Successful! Your email settings are working correctly.";
+        
+        $mail->send();
+        
+        return [
+            'success' => true, 
+            'message' => "Test email sent successfully to $testEmail!",
+            'debug' => $debugOutput
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false, 
+            'message' => "SMTP Error: " . $mail->ErrorInfo,
+            'debug' => $debugOutput ?? '',
+            'exception' => $e->getMessage()
+        ];
     }
 }
 
@@ -47,6 +150,68 @@ $csrfToken = generateCsrfToken();
     <link rel="stylesheet" href="admin-style.css">
     <!-- Jodit Editor -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/3.24.7/jodit.min.css">
+    <style>
+        .test-smtp-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .test-smtp-section h3 {
+            margin: 0 0 12px 0;
+            color: #0369a1;
+            font-size: 16px;
+        }
+        .test-smtp-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .test-smtp-row .form-group {
+            flex: 1;
+            margin: 0;
+        }
+        .test-result {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+        .test-result.success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .test-result.error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .test-result h4 {
+            margin: 0 0 8px 0;
+        }
+        .debug-output {
+            margin-top: 12px;
+            padding: 12px;
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .toggle-debug {
+            margin-top: 8px;
+            color: #0369a1;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toggle-debug:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="admin-layout">
@@ -81,6 +246,7 @@ $csrfToken = generateCsrfToken();
             
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                <input type="hidden" name="action" value="save">
                 
                 <section class="card">
                     <h2>SMTP Configuration</h2>
@@ -138,6 +304,47 @@ $csrfToken = generateCsrfToken();
                     </div>
                 </section>
                 
+                <!-- Test SMTP Section -->
+                <section class="card">
+                    <div class="test-smtp-section">
+                        <h3>🧪 Test SMTP Connection</h3>
+                        <p style="margin: 0 0 12px; color: #666; font-size: 13px;">
+                            Send a test email to verify your SMTP settings are working correctly.
+                        </p>
+                        <div class="test-smtp-row">
+                            <div class="form-group">
+                                <label for="test_email">Test Email Address</label>
+                                <input type="email" id="test_email" name="test_email" 
+                                       value="<?= h($settings['admin_email'] ?? '') ?>"
+                                       placeholder="your@email.com">
+                            </div>
+                            <button type="submit" name="action" value="test" class="btn btn-secondary">
+                                📧 Send Test Email
+                            </button>
+                        </div>
+                        
+                        <?php if ($testResult): ?>
+                        <div class="test-result <?= $testResult['success'] ? 'success' : 'error' ?>">
+                            <h4><?= $testResult['success'] ? '✅ Success' : '❌ Failed' ?></h4>
+                            <p><?= h($testResult['message']) ?></p>
+                            
+                            <?php if (!empty($testResult['exception'])): ?>
+                            <p><strong>Exception:</strong> <?= h($testResult['exception']) ?></p>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($testResult['debug'])): ?>
+                            <div class="toggle-debug" onclick="toggleDebug()">
+                                ▶ Show SMTP Debug Log
+                            </div>
+                            <div class="debug-output" id="debugOutput" style="display: none;">
+<?= h($testResult['debug']) ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </section>
+                
                 <section class="card">
                     <h2>Donor Receipt Email</h2>
                     <p style="margin-bottom: 15px; color: #666; font-size: 13px;">
@@ -189,6 +396,18 @@ $csrfToken = generateCsrfToken();
         
         new Jodit('#email_donor_body', joditConfig);
         new Jodit('#email_admin_body', joditConfig);
+        
+        function toggleDebug() {
+            const output = document.getElementById('debugOutput');
+            const toggle = document.querySelector('.toggle-debug');
+            if (output.style.display === 'none') {
+                output.style.display = 'block';
+                toggle.textContent = '▼ Hide SMTP Debug Log';
+            } else {
+                output.style.display = 'none';
+                toggle.textContent = '▶ Show SMTP Debug Log';
+            }
+        }
     </script>
 </body>
 </html>
