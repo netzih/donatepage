@@ -18,29 +18,36 @@ function civicrm_api4($entity, $action, $params = []) {
         return ['error' => 'CiviCRM not configured'];
     }
     
-    // Build API endpoint URL based on CMS platform
+    // Build REST API v3 endpoint URL based on CMS platform
+    // Using API3 format for cross-platform compatibility
     switch ($platform) {
         case 'wordpress':
-            // WordPress uses the civiwp query format with REST API v3
-            // Format: entity=Contact&action=get&json={"email":"x@y.com"}
+            // WordPress uses the civiwp query format
             $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/rest';
-            $url .= '&entity=' . $entity;
-            $url .= '&action=' . $action;
-            $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
-            $url .= '&json=' . urlencode(json_encode($params));
             break;
         case 'drupal':
-        case 'standalone':
-            // Drupal/Standalone uses AJAX endpoint
-            $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
+            // Drupal uses the civicrm path
+            $url = $baseUrl . '/civicrm/ajax/rest';
             break;
         case 'joomla':
-            // Joomla uses index.php with options
-            $url = $baseUrl . '/index.php?option=com_civicrm&task=civicrm/ajax/api4/' . $entity . '/' . $action;
+            // Joomla uses index.php with component option
+            $url = $baseUrl . '/index.php?option=com_civicrm&task=civicrm/ajax/rest';
+            break;
+        case 'standalone':
+            // Standalone CiviCRM
+            $url = $baseUrl . '/civicrm/ajax/rest';
             break;
         default:
-            $url = $baseUrl . '/civicrm/ajax/api4/' . $entity . '/' . $action;
+            $url = $baseUrl . '/civicrm/ajax/rest';
     }
+    
+    // Add common API3 parameters
+    $separator = (strpos($url, '?') !== false) ? '&' : '?';
+    $url .= $separator . 'entity=' . urlencode($entity);
+    $url .= '&action=' . urlencode($action);
+    $url .= '&api_key=' . urlencode($apiKey);
+    $url .= '&key=' . urlencode($siteKey);
+    $url .= '&json=' . urlencode(json_encode($params));
     
     // Check SSL verification setting
     $skipSsl = getSetting('civicrm_skip_ssl') === '1';
@@ -48,28 +55,16 @@ function civicrm_api4($entity, $action, $params = []) {
     // Prepare request
     $ch = curl_init();
     
-    // Set common options
+    // Set common options - all platforms use GET with REST API v3
     $options = [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 30,
         CURLOPT_SSL_VERIFYPEER => !$skipSsl,
         CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2,
-        CURLOPT_FOLLOWLOCATION => true
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTPGET => true
     ];
-    
-    // WordPress uses GET, others use POST
-    if ($platform === 'wordpress') {
-        $options[CURLOPT_HTTPGET] = true;
-    } else {
-        $options[CURLOPT_POST] = true;
-        $options[CURLOPT_POSTFIELDS] = json_encode($params);
-        $options[CURLOPT_HTTPHEADER] = [
-            'Content-Type: application/json',
-            'X-Civi-Auth: Bearer ' . $apiKey,
-            'X-Civi-Key: ' . $siteKey
-        ];
-    }
     
     curl_setopt_array($ch, $options);
     
