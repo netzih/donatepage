@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
     `title` VARCHAR(255) NOT NULL,
     `description` TEXT,
     `header_image` VARCHAR(255),
+    `logo_image` VARCHAR(255),
     `goal_amount` DECIMAL(10,2) DEFAULT 0,
     `matching_enabled` BOOLEAN DEFAULT FALSE,
     `matching_multiplier` INT DEFAULT 2,

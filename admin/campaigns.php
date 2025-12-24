@@ -45,10 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $headerImage = handleUpload('header_image');
                     }
                     
+                    // Handle logo image upload
+                    $logoImage = '';
+                    if (!empty($_FILES['logo_image']['name'])) {
+                        $logoImage = handleUpload('logo_image');
+                    }
+                    
                     $newId = createCampaign([
                         'title' => $_POST['title'],
                         'description' => $_POST['description'],
                         'header_image' => $headerImage,
+                        'logo_image' => $logoImage,
                         'goal_amount' => $_POST['goal_amount'],
                         'matching_enabled' => isset($_POST['matching_enabled']),
                         'matching_multiplier' => $_POST['matching_multiplier'] ?? 2,
@@ -82,6 +89,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $headerImage = handleUpload('header_image');
                         if ($headerImage) {
                             $updateData['header_image'] = $headerImage;
+                        }
+                    }
+                    
+                    // Handle logo image upload
+                    if (!empty($_FILES['logo_image']['name'])) {
+                        $logoImage = handleUpload('logo_image');
+                        if ($logoImage) {
+                            $updateData['logo_image'] = $logoImage;
                         }
                     }
                     
@@ -398,7 +413,13 @@ if ($action === 'list') {
                     <div class="form-group">
                         <label for="header_image">Header Image</label>
                         <input type="file" id="header_image" name="header_image" accept="image/*">
-                        <small>Recommended: 1920x600px</small>
+                        <small>Recommended: 1920x600px (campaign banner)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="logo_image">Campaign Logo (Optional)</label>
+                        <input type="file" id="logo_image" name="logo_image" accept="image/*">
+                        <small>If not set, uses organization logo from Settings</small>
                     </div>
                     
                     <div class="form-row">
@@ -478,10 +499,19 @@ if ($action === 'list') {
                     <div class="form-group">
                         <label for="header_image">Header Image</label>
                         <?php if ($campaign['header_image']): ?>
-                            <img src="../<?= h($campaign['header_image']) ?>" style="max-width: 300px; border-radius: 8px; display: block; margin-bottom: 12px;">
+                            <img src="/<?= h($campaign['header_image']) ?>" style="max-width: 300px; border-radius: 8px; display: block; margin-bottom: 12px;">
                         <?php endif; ?>
                         <input type="file" id="header_image" name="header_image" accept="image/*">
                         <small>Leave blank to keep current image</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="logo_image">Campaign Logo (Optional)</label>
+                        <?php if (!empty($campaign['logo_image'])): ?>
+                            <img src="/<?= h($campaign['logo_image']) ?>" style="max-width: 100px; border-radius: 8px; display: block; margin-bottom: 12px;">
+                        <?php endif; ?>
+                        <input type="file" id="logo_image" name="logo_image" accept="image/*">
+                        <small>If not set, uses organization logo from Settings</small>
                     </div>
                     
                     <div class="form-row">

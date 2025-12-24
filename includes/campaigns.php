@@ -149,6 +149,7 @@ function createCampaign($data) {
         'title' => $data['title'],
         'description' => $data['description'] ?? '',
         'header_image' => $data['header_image'] ?? '',
+        'logo_image' => $data['logo_image'] ?? '',
         'goal_amount' => (float)($data['goal_amount'] ?? 0),
         'matching_enabled' => isset($data['matching_enabled']) ? 1 : 0,
         'matching_multiplier' => (int)($data['matching_multiplier'] ?? 2),
@@ -172,6 +173,9 @@ function updateCampaign($id, $data) {
     }
     if (isset($data['header_image'])) {
         $updateData['header_image'] = $data['header_image'];
+    }
+    if (isset($data['logo_image'])) {
+        $updateData['logo_image'] = $data['logo_image'];
     }
     if (isset($data['goal_amount'])) {
         $updateData['goal_amount'] = (float)$data['goal_amount'];

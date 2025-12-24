@@ -93,8 +93,14 @@ if ($campaign) {
         <nav class="campaign-nav">
             <div class="nav-container">
                 <a href="/" class="logo">
-                    <?php if ($logoPath): ?>
-                        <img src="<?= h($logoPath) ?>" alt="<?= h($orgName) ?>">
+                    <?php 
+                    // Use campaign logo if set, otherwise org logo
+                    $displayLogo = $campaign['logo_image'] ?? $logoPath;
+                    if ($displayLogo): 
+                        // Ensure absolute path
+                        $logoSrc = (strpos($displayLogo, '/') === 0) ? $displayLogo : '/' . $displayLogo;
+                    ?>
+                        <img src="<?= h($logoSrc) ?>" alt="<?= h($orgName) ?>">
                     <?php else: ?>
                         <span class="logo-text"><?= h($orgName) ?></span>
                     <?php endif; ?>
