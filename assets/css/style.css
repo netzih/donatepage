@@ -759,13 +759,14 @@ body.campaign-page {
 
 /* Matchers Section */
 .matchers-section {
-    width: 100%;
-    max-width: 900px;
+    width: fit-content;
+    margin: 0 auto;
+    max-width: 95%;
     background: rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    padding: 20px 40px 40px;
-    border-radius: 24px;
+    padding: 20px 30px 30px;
+    border-radius: 20px;
 }
 
 .matchers-label {
