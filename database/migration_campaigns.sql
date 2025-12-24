@@ -42,8 +42,8 @@ ALTER TABLE `donations` ADD INDEX `idx_campaign` (`campaign_id`);
 -- Add public display fields to donations (for campaign donations list)
 ALTER TABLE `donations` ADD COLUMN `display_name` VARCHAR(255) DEFAULT NULL;
 ALTER TABLE `donations` ADD COLUMN `donation_message` TEXT DEFAULT NULL;
-ALTER TABLE `donations` ADD COLUMN `is_anonymous` TINYINT(1) DEFAULT 0;
-ALTER TABLE `donations` ADD COLUMN `is_matched` TINYINT(1) DEFAULT 0;
+ALTER TABLE `donations` ADD COLUMN `is_anonymous` TINYINT DEFAULT 0;
+ALTER TABLE `donations` ADD COLUMN `is_matched` TINYINT DEFAULT 0;
 
 -- Note: Foreign key constraint is optional to avoid issues with existing data
 -- You can add it manually if desired:
