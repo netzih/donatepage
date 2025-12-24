@@ -41,13 +41,17 @@ function civicrm_api4($entity, $action, $params = []) {
             $url = $baseUrl . '/civicrm/ajax/rest';
     }
     
-    // Add common API3 parameters
+    // Add common API3 parameters - build query string properly
+    $queryParams = [
+        'entity' => $entity,
+        'action' => $action,
+        'api_key' => $apiKey,
+        'key' => $siteKey,
+        'json' => json_encode($params)
+    ];
+    
     $separator = (strpos($url, '?') !== false) ? '&' : '?';
-    $url .= $separator . 'entity=' . urlencode($entity);
-    $url .= '&action=' . urlencode($action);
-    $url .= '&api_key=' . urlencode($apiKey);
-    $url .= '&key=' . urlencode($siteKey);
-    $url .= '&json=' . urlencode(json_encode($params));
+    $url .= $separator . http_build_query($queryParams);
     
     // Check SSL verification setting
     $skipSsl = getSetting('civicrm_skip_ssl') === '1';
