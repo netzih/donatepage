@@ -8,6 +8,7 @@
 # Environment and config with secrets
 .env
 .env.*
+includes/config.php
 includes/config.local.php
 
 # Logs
