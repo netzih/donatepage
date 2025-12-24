@@ -23,36 +23,20 @@ $csrfToken = generateCsrfToken();
 // Get campaign slug from URL
 $slug = isset($_GET['slug']) ? trim($_GET['slug']) : '';
 
-// TODO: This will be populated by Agent B's API
-// For now, use placeholder data structure for frontend development
+// Get campaign from database
+require_once __DIR__ . '/includes/campaigns.php';
+
 $campaign = null;
 $error = null;
 
 if (empty($slug)) {
     $error = 'Campaign not found';
 } else {
-    // Placeholder campaign data - will be replaced with API call
-    // Agent B will create: getCampaignBySlug($slug)
-    $campaign = [
-        'id' => 1,
-        'slug' => $slug,
-        'title' => 'Sample Campaign',
-        'description' => '<p>This is a placeholder description. Agent B will implement the database and API to fetch real campaign data.</p><p>Support our mission by making a donation today!</p>',
-        'header_image' => '',
-        'goal_amount' => 50000,
-        'raised_amount' => 15000,
-        'donor_count' => 42,
-        'matching_enabled' => true,
-        'matching_multiplier' => 2,
-        'start_date' => date('Y-m-d'),
-        'end_date' => date('Y-m-d', strtotime('+30 days')),
-        'is_active' => true,
-        'matchers' => [
-            ['id' => 1, 'name' => 'Anonymous Donor', 'image' => null],
-            ['id' => 2, 'name' => 'The Smith Foundation', 'image' => null],
-            ['id' => 3, 'name' => 'Community Partners', 'image' => null],
-        ]
-    ];
+    $campaign = getCampaignBySlug($slug);
+    
+    if (!$campaign) {
+        $error = 'Campaign not found';
+    }
 }
 
 // Calculate progress percentage

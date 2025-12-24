@@ -69,6 +69,7 @@ try {
         // Create PayPal order
         $amount = (float)($input['amount'] ?? 0);
         $frequency = $input['frequency'] ?? 'once';
+        $campaignId = isset($input['campaign_id']) ? (int)$input['campaign_id'] : null;
         
         if ($amount < 1) {
             jsonResponse(['error' => 'Invalid amount'], 400);
@@ -109,14 +110,18 @@ try {
         }
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => $frequency,
             'payment_method' => 'paypal',
             'transaction_id' => $order['id'],
             'status' => 'pending',
             'metadata' => json_encode(['paypal_order_id' => $order['id']])
-        ]);
+        ];
+        if ($campaignId) {
+            $donationData['campaign_id'] = $campaignId;
+        }
+        $donationId = db()->insert('donations', $donationData);
         
         // Store donation ID in session for later
         $_SESSION['pending_paypal_donation'] = $donationId;

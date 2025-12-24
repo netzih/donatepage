@@ -24,6 +24,7 @@ if (!verifyCsrfToken($input['csrf_token'] ?? '')) {
 
 $amount = (float)($input['amount'] ?? 0);
 $frequency = $input['frequency'] ?? 'once';
+$campaignId = isset($input['campaign_id']) ? (int)$input['campaign_id'] : null;
 
 if ($amount < 1) {
     jsonResponse(['error' => 'Invalid amount'], 400);
@@ -55,7 +56,7 @@ try {
         ]);
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => 'monthly',
             'payment_method' => 'stripe',
@@ -65,7 +66,11 @@ try {
                 'setup_intent_id' => $setupIntent->id,
                 'type' => 'subscription'
             ])
-        ]);
+        ];
+        if ($campaignId) {
+            $donationData['campaign_id'] = $campaignId;
+        }
+        $donationId = db()->insert('donations', $donationData);
         
         jsonResponse([
             'clientSecret' => $setupIntent->client_secret,
@@ -90,7 +95,7 @@ try {
         ]);
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => 'once',
             'payment_method' => 'stripe',
@@ -100,7 +105,11 @@ try {
                 'payment_intent_id' => $paymentIntent->id,
                 'type' => 'payment'
             ])
-        ]);
+        ];
+        if ($campaignId) {
+            $donationData['campaign_id'] = $campaignId;
+        }
+        $donationId = db()->insert('donations', $donationData);
         
         jsonResponse([
             'clientSecret' => $paymentIntent->client_secret,
