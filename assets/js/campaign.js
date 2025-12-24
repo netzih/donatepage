@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Create PaymentIntent or SetupIntent
-            const response = await fetch('api/create-payment-intent.php', {
+            const response = await fetch('/api/create-payment-intent.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (intentId && intentStatus === 'succeeded') {
                     // Confirm payment/subscription on server
-                    const confirmResponse = await fetch('api/confirm-payment.php', {
+                    const confirmResponse = await fetch('/api/confirm-payment.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const response = await fetch('api/process-paypal.php', {
+                const response = await fetch('/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
 
             onApprove: async (data, actions) => {
-                const response = await fetch('api/process-paypal.php', {
+                const response = await fetch('/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
