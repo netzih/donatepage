@@ -62,7 +62,8 @@ function civicrm_api4($entity, $action, $params = []) {
     // Prepare request
     $ch = curl_init();
     
-    // Set common options - all platforms use GET with REST API v3
+    // CiviCRM requires POST for operations that modify data
+    // Use POST for all requests for consistency
     $options = [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
@@ -70,7 +71,8 @@ function civicrm_api4($entity, $action, $params = []) {
         CURLOPT_SSL_VERIFYPEER => !$skipSsl,
         CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTPGET => true
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => '' // Empty POST body, params are in URL
     ];
     
     curl_setopt_array($ch, $options);
