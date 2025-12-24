@@ -21,11 +21,10 @@ function civicrm_api4($entity, $action, $params = []) {
     // Build API4 endpoint URL based on CMS platform
     switch ($platform) {
         case 'wordpress':
-            // WordPress CiviCRM - use wp-content extern/rest.php
-            // This endpoint is more universally available
-            $url = $baseUrl . '/wp-content/plugins/civicrm/civicrm/extern/rest.php';
-            $url .= '?entity=' . $entity . '&action=' . $action . '&json=' . urlencode(json_encode($params));
+            // WordPress uses the civiwp query format with GET request
+            $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/api4/' . $entity . '/' . $action;
             $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
+            $url .= '&json=' . urlencode(json_encode($params));
             break;
         case 'drupal':
         case 'standalone':
@@ -52,17 +51,22 @@ function civicrm_api4($entity, $action, $params = []) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 30,
         CURLOPT_SSL_VERIFYPEER => !$skipSsl,
-        CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2
+        CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2,
+        CURLOPT_FOLLOWLOCATION => true
     ];
     
-    // All platforms use POST with JSON body and auth headers
-    $options[CURLOPT_POST] = true;
-    $options[CURLOPT_POSTFIELDS] = json_encode($params);
-    $options[CURLOPT_HTTPHEADER] = [
-        'Content-Type: application/json',
-        'X-Civi-Auth: Bearer ' . $apiKey,
-        'X-Civi-Key: ' . $siteKey
-    ];
+    // WordPress uses GET, others use POST
+    if ($platform === 'wordpress') {
+        $options[CURLOPT_HTTPGET] = true;
+    } else {
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($params);
+        $options[CURLOPT_HTTPHEADER] = [
+            'Content-Type: application/json',
+            'X-Civi-Auth: Bearer ' . $apiKey,
+            'X-Civi-Key: ' . $siteKey
+        ];
+    }
     
     curl_setopt_array($ch, $options);
     
