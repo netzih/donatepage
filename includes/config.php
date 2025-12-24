@@ -3,17 +3,17 @@
  * Application Configuration
  * 
  * Update these values for your environment.
- * For production, consider using environment variables.
  */
 
 // Database Configuration
+// ⚠️ UPDATE THESE WITH YOUR PLESK MYSQL CREDENTIALS
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'donation_platform');
-define('DB_USER', 'your_db_user');
-define('DB_PASS', 'your_db_password');
+define('DB_NAME', 'YOUR_DATABASE_NAME');      // Create in Plesk > Databases
+define('DB_USER', 'YOUR_DATABASE_USER');      // The user you created
+define('DB_PASS', 'YOUR_DATABASE_PASSWORD');  // The password you set
 
 // Application URL (no trailing slash)
-define('APP_URL', 'https://yourdomain.com');
+define('APP_URL', 'https://halochos.jewish-richmond.com');
 
 // Session configuration
 define('SESSION_NAME', 'donate_session');
@@ -27,6 +27,7 @@ define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
 // Timezone
 date_default_timezone_set('America/New_York');
 
-// Error reporting (disable in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Error reporting (DISABLED for production)
+error_reporting(0);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
