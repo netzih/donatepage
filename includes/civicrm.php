@@ -18,11 +18,14 @@ function civicrm_api4($entity, $action, $params = []) {
         return ['error' => 'CiviCRM not configured'];
     }
     
-    // Build API4 endpoint URL based on CMS platform
+    // Build API endpoint URL based on CMS platform
     switch ($platform) {
         case 'wordpress':
-            // WordPress uses the civiwp query format with GET request
-            $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/api4/' . $entity . '/' . $action;
+            // WordPress uses the civiwp query format with REST API v3
+            // Format: entity=Contact&action=get&json={"email":"x@y.com"}
+            $url = $baseUrl . '/?civiwp=CiviCRM&q=civicrm/ajax/rest';
+            $url .= '&entity=' . $entity;
+            $url .= '&action=' . $action;
             $url .= '&api_key=' . urlencode($apiKey) . '&key=' . urlencode($siteKey);
             $url .= '&json=' . urlencode(json_encode($params));
             break;
@@ -92,22 +95,26 @@ function civicrm_api4($entity, $action, $params = []) {
 
 /**
  * Find a CiviCRM contact by email
+ * Uses API3 format for WordPress compatibility
  */
 function civicrm_find_contact($email) {
+    // API3 format uses flat params
     $result = civicrm_api4('Contact', 'get', [
-        'select' => ['id', 'display_name', 'first_name', 'last_name'],
-        'where' => [
-            ['email_primary.email', '=', $email]
-        ],
-        'limit' => 1
+        'email' => $email,
+        'return' => 'id,display_name,first_name,last_name'
     ]);
     
     if (isset($result['error'])) {
         return $result;
     }
     
-    if (!empty($result['values'])) {
-        return ['contact' => $result['values'][0]];
+    // API3 returns values as associative array
+    if (!empty($result['values']) && is_array($result['values'])) {
+        // Get first contact from values
+        $contact = reset($result['values']);
+        if ($contact && isset($contact['id'])) {
+            return ['contact' => $contact];
+        }
     }
     
     return ['contact' => null];
@@ -115,6 +122,7 @@ function civicrm_find_contact($email) {
 
 /**
  * Create a new CiviCRM contact
+ * Uses API3 format for WordPress compatibility
  */
 function civicrm_create_contact($name, $email) {
     // Split name into first/last
@@ -128,28 +136,36 @@ function civicrm_create_contact($name, $email) {
         $firstName = '';
     }
     
+    // API3 format uses flat params
     $result = civicrm_api4('Contact', 'create', [
-        'values' => [
-            'contact_type' => 'Individual',
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email_primary.email' => $email
-        ]
+        'contact_type' => 'Individual',
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'email' => $email
     ]);
     
     if (isset($result['error'])) {
         return $result;
     }
     
-    if (!empty($result['values'])) {
-        return ['contact' => $result['values'][0]];
+    // API3 create returns the created contact
+    if (isset($result['id'])) {
+        return ['contact' => ['id' => $result['id']]];
     }
     
-    return ['error' => 'Failed to create contact'];
+    if (!empty($result['values'])) {
+        $contact = reset($result['values']);
+        if ($contact) {
+            return ['contact' => $contact];
+        }
+    }
+    
+    return ['error' => 'Failed to create contact: ' . json_encode($result)];
 }
 
 /**
  * Create a CiviCRM contribution
+ * Uses API3 format for WordPress compatibility
  */
 function civicrm_create_contribution($contactId, $donation) {
     $financialTypeId = (int) getSetting('civicrm_financial_type', 1);
@@ -171,29 +187,36 @@ function civicrm_create_contribution($contactId, $donation) {
         }
     }
     
+    // API3 format uses flat params and numeric IDs
     $result = civicrm_api4('Contribution', 'create', [
-        'values' => [
-            'contact_id' => $contactId,
-            'financial_type_id' => $financialTypeId,
-            'total_amount' => (float) $donation['amount'],
-            'receive_date' => date('Y-m-d H:i:s', strtotime($donation['created_at'])),
-            'contribution_status_id:name' => 'Completed',
-            'payment_instrument_id:name' => 'Credit Card',
-            'source' => "Online Donation - $orgName",
-            'trxn_id' => $donation['transaction_id'] ?? null,
-            'note' => $note
-        ]
+        'contact_id' => $contactId,
+        'financial_type_id' => $financialTypeId,
+        'total_amount' => (float) $donation['amount'],
+        'receive_date' => date('Y-m-d', strtotime($donation['created_at'])),
+        'contribution_status_id' => 1, // 1 = Completed
+        'payment_instrument_id' => 1,  // 1 = Credit Card
+        'source' => "Online Donation - $orgName",
+        'trxn_id' => $donation['transaction_id'] ?? null,
+        'note' => $note
     ]);
     
     if (isset($result['error'])) {
         return $result;
     }
     
-    if (!empty($result['values'])) {
-        return ['contribution' => $result['values'][0]];
+    // API3 create returns the created contribution
+    if (isset($result['id'])) {
+        return ['contribution' => ['id' => $result['id']]];
     }
     
-    return ['error' => 'Failed to create contribution'];
+    if (!empty($result['values'])) {
+        $contribution = reset($result['values']);
+        if ($contribution) {
+            return ['contribution' => $contribution];
+        }
+    }
+    
+    return ['error' => 'Failed to create contribution: ' . json_encode($result)];
 }
 
 /**
