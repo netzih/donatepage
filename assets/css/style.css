@@ -510,18 +510,9 @@ body {
 }
 
 /* Embed Mode - for iframe usage */
-body.embed-mode {
-    background: #fff;
-}
-
-body.embed-mode .page-wrapper {
-    min-height: auto;
-    background: transparent;
-    padding: 20px;
-}
-
+/* Common embed styles */
 body.embed-mode .hero {
-    padding: 0;
+    padding: 20px;
     min-height: auto;
     display: block;
 }
@@ -533,14 +524,36 @@ body.embed-mode .hero-content {
     gap: 0;
 }
 
-body.embed-mode .donation-card {
+body.embed-mode .secure-badge {
+    text-align: center;
+    margin-top: 16px;
+}
+
+/* Embed Minimal (embed=1) - Clean white background */
+body.embed-minimal {
+    background: #fff;
+}
+
+body.embed-minimal .page-wrapper {
+    min-height: auto;
+    background: transparent !important;
+    padding: 0;
+}
+
+body.embed-minimal .donation-card {
     width: 100%;
     max-width: 100%;
     box-shadow: none;
     border: 1px solid var(--border-light);
 }
 
-body.embed-mode .secure-badge {
-    text-align: center;
-    margin-top: 16px;
+/* Embed Styled (embed=2) - Keeps background */
+body.embed-styled .page-wrapper {
+    min-height: auto;
+    padding: 20px;
+}
+
+body.embed-styled .donation-card {
+    width: 100%;
+    max-width: 100%;
 }

@@ -22,7 +22,9 @@ $currencySymbol = $settings['currency_symbol'] ?? '$';
 $csrfToken = generateCsrfToken();
 
 // Check for embed mode (for iframe usage)
-$embedMode = isset($_GET['embed']) && $_GET['embed'] == '1';
+// embed=1: Minimal (white background, no header/footer)
+// embed=2: Styled (keeps background, removes navbar/footer)
+$embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,13 +52,14 @@ $embedMode = isset($_GET['embed']) && $_GET['embed'] == '1';
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=2">
 </head>
-<body class="<?= $embedMode ? 'embed-mode' : '' ?>">
-    <div class="page-wrapper" style="<?= $bgPath && !$embedMode ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
-        <?php if (!$embedMode): ?>
+<body class="<?= $embedMode === 1 ? 'embed-mode embed-minimal' : ($embedMode === 2 ? 'embed-mode embed-styled' : '') ?>">
+    <div class="page-wrapper" style="<?= $bgPath && $embedMode !== 1 ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
+        <?php if ($embedMode !== 1): ?>
         <div class="overlay"></div>
         <?php endif; ?>
         
-        <?php if (!$embedMode): ?>
+        <?php if ($embedMode === 0): ?>
+            <nav class="navbar">
             <div class="nav-container">
                 <a href="/" class="logo">
                     <?php if ($logoPath): ?>
@@ -75,7 +78,7 @@ $embedMode = isset($_GET['embed']) && $_GET['embed'] == '1';
         
         <main class="hero">
             <div class="hero-content">
-                <?php if (!$embedMode): ?>
+                <?php if ($embedMode === 0): ?>
                 <div class="hero-text">
                     <h1><?= h(strtoupper($orgName)) ?></h1>
                     <p class="tagline"><em><?= h($tagline) ?></em></p>
@@ -154,7 +157,7 @@ $embedMode = isset($_GET['embed']) && $_GET['embed'] == '1';
             </div>
         </main>
         
-        <?php if (!$embedMode): ?>
+        <?php if ($embedMode === 0): ?>
         <footer class="footer">
             <div class="footer-content">
                 <p>&copy; <?= date('Y') ?> <?= h($orgName) ?>. All rights reserved.</p>

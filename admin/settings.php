@@ -146,7 +146,50 @@ $csrfToken = generateCsrfToken();
                 
                 <button type="submit" class="btn btn-primary">Save Settings</button>
             </form>
+            
+            <section class="card" style="margin-top: 24px;">
+                <h2>📋 Embed Codes</h2>
+                <p style="color: #666; margin-bottom: 20px;">Use these codes to embed the donation form on other websites</p>
+                
+                <div class="form-group">
+                    <label>Minimal Embed (White Background)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <textarea id="embed-minimal" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=1" width="100%" height="600" frameborder="0" style="max-width: 500px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-minimal')" style="white-space: nowrap;">📋 Copy</button>
+                    </div>
+                    <small>Clean white background, perfect for light-themed websites</small>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Styled Embed (With Background)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <textarea id="embed-styled" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=2" width="100%" height="700" frameborder="0" style="max-width: 600px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-styled')" style="white-space: nowrap;">📋 Copy</button>
+                    </div>
+                    <small>Includes your background image and branding</small>
+                </div>
+            </section>
         </main>
     </div>
+    
+    <script>
+    function copyEmbedCode(id) {
+        const textarea = document.getElementById(id);
+        textarea.select();
+        document.execCommand('copy');
+        
+        const btn = textarea.nextElementSibling;
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        btn.style.background = '#20a39e';
+        btn.style.color = 'white';
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+            btn.style.color = '';
+        }, 2000);
+    }
+    </script>
 </body>
 </html>
