@@ -77,12 +77,24 @@ function civicrm_api4($entity, $action, $params = []) {
         return ['error' => 'Connection error: ' . $error];
     }
     
+    // Try to decode JSON response
     $data = json_decode($response, true);
     
+    // Check if JSON decode failed
+    if ($data === null && $response !== 'null') {
+        return ['error' => 'Invalid JSON response: ' . substr($response, 0, 500)];
+    }
+    
+    // Check for HTTP errors
     if ($httpCode !== 200) {
         return [
             'error' => 'API error (HTTP ' . $httpCode . '): ' . ($data['error_message'] ?? $response)
         ];
+    }
+    
+    // Check for CiviCRM API error (is_error = 1)
+    if (isset($data['is_error']) && $data['is_error']) {
+        return ['error' => 'CiviCRM error: ' . ($data['error_message'] ?? json_encode($data))];
     }
     
     return $data;
