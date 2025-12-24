@@ -21,7 +21,8 @@ $dateTo = $_GET['date_to'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
 
 // Build WHERE clause
-$where = ["status != 'deleted'"];
+// Exclude deleted donations and anonymous pending donations (no name)
+$where = ["status != 'deleted'", "(status != 'pending' OR (donor_name IS NOT NULL AND donor_name != ''))"];
 $params = [];
 
 // Amount filters
