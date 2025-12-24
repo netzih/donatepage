@@ -87,7 +87,7 @@ if ($campaign) {
     <?php else: ?>
     
     <!-- Campaign Hero -->
-    <div class="campaign-hero" style="<?= $campaign['header_image'] ? 'background-image: url(' . h($campaign['header_image']) . ')' : '' ?>">
+    <div class="campaign-hero" style="<?= $campaign['header_image'] ? 'background-image: url(/' . h($campaign['header_image']) . ')' : '' ?>">
         <div class="campaign-hero-overlay"></div>
         
         <nav class="campaign-nav">
