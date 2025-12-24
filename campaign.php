@@ -58,11 +58,12 @@ if ($campaign) {
 $campaignDonations = [];
 if ($campaign) {
     try {
+        // Get donations for this campaign
         $campaignDonations = db()->fetchAll(
-            "SELECT donor_name, display_name, amount, donation_message, is_anonymous, created_at 
-             FROM donations 
-             WHERE campaign_id = ? AND status = 'completed' 
-             ORDER BY created_at DESC 
+            "SELECT donor_name, display_name, amount, donation_message, is_anonymous, created_at, is_matched
+             FROM donations
+             WHERE campaign_id = ? AND status = 'completed'
+             ORDER BY created_at DESC
              LIMIT 100",
             [$campaign['id']]
         );
@@ -146,18 +147,18 @@ if ($campaign) {
             <!-- Matchers Slider -->
             <?php if (!empty($campaign['matchers'])): ?>
             <div class="matchers-section">
-                <div class="matchers-label">Our Generous Matchers</div>
+                <div class="matchers-label"><?= h($campaign['matchers_section_title'] ?? 'Our Generous Matchers') ?></div>
                 <div class="matchers-slider">
                     <?php foreach ($campaign['matchers'] as $matcher): ?>
                     <div class="matcher-card">
-                        <div class="matcher-avatar">
+                        <div class="matcher-avatar" style="<?= !empty($matcher['color']) ? 'background: ' . h($matcher['color']) . ';' : '' ?>">
                             <?php if ($matcher['image']): ?>
                                 <img src="<?= h($matcher['image']) ?>" alt="<?= h($matcher['name']) ?>">
                             <?php else: ?>
                                 <span class="matcher-initials"><?= h(substr($matcher['name'], 0, 1)) ?></span>
                             <?php endif; ?>
                         </div>
-                        <span class="matcher-label">MATCHER</span>
+                        <span class="matcher-label"><?= h($campaign['matchers_label_singular'] ?? 'MATCHER') ?></span>
                         <span class="matcher-name"><?= h($matcher['name']) ?></span>
                     </div>
                     <?php endforeach; ?>
@@ -235,7 +236,12 @@ if ($campaign) {
                             <p class="donation-message"><?= h($don['donation_message']) ?></p>
                             <?php endif; ?>
                         </div>
-                        <div class="donation-amount"><?= h($currencySymbol) ?><?= number_format($don['amount']) ?></div>
+                        <div class="donation-amount">
+                            <?= h($currencySymbol) ?><?= number_format($don['is_matched'] ? $don['amount'] * $campaign['matching_multiplier'] : $don['amount']) ?>
+                            <?php if ($don['is_matched']): ?>
+                                <span class="matched-badge" style="font-size: 10px; background: #20a39e; color: white; padding: 2px 4px; border-radius: 4px; margin-left: 5px; vertical-align: middle; font-weight: bold;">MATCHED</span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>

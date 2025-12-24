@@ -61,7 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matching_multiplier' => $_POST['matching_multiplier'] ?? 2,
                         'start_date' => $_POST['start_date'],
                         'end_date' => $_POST['end_date'],
-                        'is_active' => isset($_POST['is_active'])
+                        'is_active' => isset($_POST['is_active']),
+                        'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
+                        'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER'
                     ]);
                     // Redirect to prevent form resubmission
                     header('Location: /admin/campaigns?success=created');
@@ -81,7 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matching_multiplier' => $_POST['matching_multiplier'] ?? 2,
                         'start_date' => $_POST['start_date'],
                         'end_date' => $_POST['end_date'],
-                        'is_active' => isset($_POST['is_active'])
+                        'is_active' => isset($_POST['is_active']),
+                        'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
+                        'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER'
                     ];
                     
                     // Handle header image upload
@@ -127,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     addMatcher($_POST['campaign_id'], [
                         'name' => $_POST['matcher_name'],
                         'image' => $matcherImage,
+                        'color' => $_POST['matcher_color'] ?? null,
                         'amount_pledged' => $_POST['amount_pledged'] ?? 0
                     ]);
                     $success = 'Matcher added successfully!';
@@ -539,13 +544,22 @@ if ($action === 'list') {
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="matching_multiplier">Matching Multiplier</label>
-                        <select id="matching_multiplier" name="matching_multiplier" style="max-width: 150px;">
-                            <?php for ($i = 2; $i <= 5; $i++): ?>
-                            <option value="<?= $i ?>" <?= $campaign['matching_multiplier'] == $i ? 'selected' : '' ?>><?= $i ?>x</option>
-                            <?php endfor; ?>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="matching_multiplier">Matching Multiplier</label>
+                            <input type="number" id="matching_multiplier" name="matching_multiplier" value="<?= $campaign['matching_multiplier'] ?>" min="1" step="1">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="matchers_section_title">Matchers Section Title</label>
+                            <input type="text" id="matchers_section_title" name="matchers_section_title" value="<?= h($campaign['matchers_section_title']) ?>" placeholder="e.g., OUR GENEROUS SPONSORS">
+                        </div>
+                        <div class="form-group">
+                            <label for="matchers_label_singular">Individual Item Label</label>
+                            <input type="text" id="matchers_label_singular" name="matchers_label_singular" value="<?= h($campaign['matchers_label_singular']) ?>" placeholder="e.g., SPONSOR">
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -576,7 +590,9 @@ if ($action === 'list') {
                         <?php if ($matcher['image']): ?>
                             <img src="../<?= h($matcher['image']) ?>" alt="<?= h($matcher['name']) ?>">
                         <?php else: ?>
-                            <div class="matcher-initial"><?= h(substr($matcher['name'], 0, 1)) ?></div>
+                            <div class="matcher-initial" style="<?= !empty($matcher['color']) ? 'background: ' . h($matcher['color']) . ';' : '' ?>">
+                                <?= h(substr($matcher['name'], 0, 1)) ?>
+                            </div>
                         <?php endif; ?>
                         
                         <div class="matcher-info">

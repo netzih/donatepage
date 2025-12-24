@@ -94,13 +94,18 @@ function enrichCampaign($campaign) {
     
     // Get donation stats (may fail if campaign_id column doesn't exist)
     try {
+        // Calculate raised amount based on is_matched status
+        // If is_matched = 1, amount is multiplied by campaign multiplier
         $stats = db()->fetch(
             "SELECT 
-                COALESCE(SUM(amount), 0) as raised_amount,
+                SUM(CASE 
+                    WHEN is_matched = 1 THEN amount * ? 
+                    ELSE amount 
+                END) as raised_amount,
                 COUNT(*) as donor_count
             FROM donations 
             WHERE campaign_id = ? AND status = 'completed'",
-            [$id]
+            [$campaign['matching_multiplier'], $id]
         );
         $campaign['raised_amount'] = (float)($stats['raised_amount'] ?? 0);
         $campaign['donor_count'] = (int)($stats['donor_count'] ?? 0);
@@ -119,7 +124,7 @@ function enrichCampaign($campaign) {
     // Get matchers
     try {
         $campaign['matchers'] = db()->fetchAll(
-            "SELECT id, name, image, amount_pledged, display_order 
+            "SELECT id, name, image, color, amount_pledged, display_order 
             FROM campaign_matchers 
             WHERE campaign_id = ? 
             ORDER BY display_order ASC, id ASC",
@@ -155,7 +160,9 @@ function createCampaign($data) {
         'matching_multiplier' => (int)($data['matching_multiplier'] ?? 2),
         'start_date' => $data['start_date'],
         'end_date' => $data['end_date'],
-        'is_active' => isset($data['is_active']) ? 1 : 0
+        'is_active' => isset($data['is_active']) ? 1 : 0,
+        'matchers_section_title' => $data['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
+        'matchers_label_singular' => $data['matchers_label_singular'] ?? 'MATCHER'
     ]);
 }
 
@@ -195,6 +202,12 @@ function updateCampaign($id, $data) {
     if (array_key_exists('is_active', $data)) {
         $updateData['is_active'] = $data['is_active'] ? 1 : 0;
     }
+    if (isset($data['matchers_section_title'])) {
+        $updateData['matchers_section_title'] = $data['matchers_section_title'];
+    }
+    if (isset($data['matchers_label_singular'])) {
+        $updateData['matchers_label_singular'] = $data['matchers_label_singular'];
+    }
     
     if (!empty($updateData)) {
         db()->update('campaigns', $updateData, 'id = ?', [(int)$id]);
@@ -223,6 +236,7 @@ function addMatcher($campaignId, $data) {
         'campaign_id' => (int)$campaignId,
         'name' => $data['name'],
         'image' => $data['image'] ?? null,
+        'color' => $data['color'] ?? null,
         'amount_pledged' => (float)($data['amount_pledged'] ?? 0),
         'display_order' => $order
     ]);
@@ -245,6 +259,9 @@ function updateMatcher($matcherId, $data) {
     }
     if (isset($data['display_order'])) {
         $updateData['display_order'] = (int)$data['display_order'];
+    }
+    if (array_key_exists('color', $data)) {
+        $updateData['color'] = $data['color'];
     }
     
     if (!empty($updateData)) {
