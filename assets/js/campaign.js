@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (confirmData.success) {
                         // Redirect with campaign context
-                        const successUrl = 'success.php?id=' + confirmData.donationId +
+                        const successUrl = '/success.php?id=' + confirmData.donationId +
                             (campaignId ? '&campaign=' + campaignId : '');
                         window.location.href = successUrl;
                     } else {
@@ -351,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (result.success) {
-                    const successUrl = 'success.php?id=' + result.donationId +
+                    const successUrl = '/success.php?id=' + result.donationId +
                         (campaignId ? '&campaign=' + campaignId : '');
                     window.location.href = successUrl;
                 } else {
