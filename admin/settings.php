@@ -63,14 +63,15 @@ $csrfToken = generateCsrfToken();
                 <span>Admin Panel</span>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.php">📊 Dashboard</a>
-                <a href="donations.php">💳 Donations</a>
-                <a href="settings.php" class="active">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php">🔗 CiviCRM</a>
+                <a href="/admin">📊 Dashboard</a>
+                <a href="/admin/donations">💳 Donations</a>
+                <a href="/admin/campaigns">📣 Campaigns</a>
+                <a href="/admin/settings" class="active">⚙️ Settings</a>
+                <a href="/admin/payments">💰 Payment Gateways</a>
+                <a href="/admin/emails">📧 Email Templates</a>
+                <a href="/admin/civicrm">🔗 CiviCRM</a>
                 <hr>
-                <a href="logout.php">🚪 Logout</a>
+                <a href="/admin/logout">🚪 Logout</a>
             </nav>
         </aside>
         

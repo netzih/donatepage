@@ -34,14 +34,15 @@ $orgName = getSetting('org_name', 'Donation Platform');
                 <span>Admin Panel</span>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.php" class="active">📊 Dashboard</a>
-                <a href="donations.php">💳 Donations</a>
-                <a href="settings.php">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php">🔗 CiviCRM</a>
+                <a href="/admin" class="active">📊 Dashboard</a>
+                <a href="/admin/donations">💳 Donations</a>
+                <a href="/admin/campaigns">📣 Campaigns</a>
+                <a href="/admin/settings">⚙️ Settings</a>
+                <a href="/admin/payments">💰 Payment Gateways</a>
+                <a href="/admin/emails">📧 Email Templates</a>
+                <a href="/admin/civicrm">🔗 CiviCRM</a>
                 <hr>
-                <a href="logout.php">🚪 Logout</a>
+                <a href="/admin/logout">🚪 Logout</a>
             </nav>
         </aside>
         
