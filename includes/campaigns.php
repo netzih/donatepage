@@ -86,6 +86,12 @@ function getAllCampaigns($includeInactive = false) {
 function enrichCampaign($campaign) {
     $id = $campaign['id'];
     
+    // Convert boolean and numeric fields FIRST
+    $campaign['matching_enabled'] = (bool)$campaign['matching_enabled'];
+    $campaign['is_active'] = (bool)$campaign['is_active'];
+    $campaign['matching_multiplier'] = (int)($campaign['matching_multiplier'] ?? 2);
+    $campaign['goal_amount'] = (float)($campaign['goal_amount'] ?? 0);
+    
     // Get donation stats (may fail if campaign_id column doesn't exist)
     try {
         $stats = db()->fetch(
@@ -122,12 +128,6 @@ function enrichCampaign($campaign) {
     } catch (Exception $e) {
         $campaign['matchers'] = [];
     }
-    
-    // Convert boolean fields
-    $campaign['matching_enabled'] = (bool)$campaign['matching_enabled'];
-    $campaign['is_active'] = (bool)$campaign['is_active'];
-    $campaign['matching_multiplier'] = (int)$campaign['matching_multiplier'];
-    $campaign['goal_amount'] = (float)$campaign['goal_amount'];
     
     return $campaign;
 }
