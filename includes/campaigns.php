@@ -40,34 +40,44 @@ function getCampaignById($id) {
         return null;
     }
     
-    $campaign = db()->fetch(
-        "SELECT * FROM campaigns WHERE id = ?",
-        [(int)$id]
-    );
-    
-    if (!$campaign) {
+    try {
+        $campaign = db()->fetch(
+            "SELECT * FROM campaigns WHERE id = ?",
+            [(int)$id]
+        );
+        
+        if (!$campaign) {
+            return null;
+        }
+        
+        return enrichCampaign($campaign);
+    } catch (Exception $e) {
+        error_log("Campaign lookup error: " . $e->getMessage());
         return null;
     }
-    
-    return enrichCampaign($campaign);
 }
 
 /**
  * Get all campaigns with stats
  */
 function getAllCampaigns($includeInactive = false) {
-    $sql = "SELECT * FROM campaigns";
-    $params = [];
-    
-    if (!$includeInactive) {
-        $sql .= " WHERE is_active = 1";
+    try {
+        $sql = "SELECT * FROM campaigns";
+        $params = [];
+        
+        if (!$includeInactive) {
+            $sql .= " WHERE is_active = 1";
+        }
+        
+        $sql .= " ORDER BY created_at DESC";
+        
+        $campaigns = db()->fetchAll($sql, $params);
+        
+        return array_map('enrichCampaign', $campaigns);
+    } catch (Exception $e) {
+        error_log("Campaigns list error: " . $e->getMessage());
+        return [];
     }
-    
-    $sql .= " ORDER BY created_at DESC";
-    
-    $campaigns = db()->fetchAll($sql, $params);
-    
-    return array_map('enrichCampaign', $campaigns);
 }
 
 /**
@@ -76,18 +86,22 @@ function getAllCampaigns($includeInactive = false) {
 function enrichCampaign($campaign) {
     $id = $campaign['id'];
     
-    // Get donation stats
-    $stats = db()->fetch(
-        "SELECT 
-            COALESCE(SUM(amount), 0) as raised_amount,
-            COUNT(*) as donor_count
-        FROM donations 
-        WHERE campaign_id = ? AND status = 'completed'",
-        [$id]
-    );
-    
-    $campaign['raised_amount'] = (float)($stats['raised_amount'] ?? 0);
-    $campaign['donor_count'] = (int)($stats['donor_count'] ?? 0);
+    // Get donation stats (may fail if campaign_id column doesn't exist)
+    try {
+        $stats = db()->fetch(
+            "SELECT 
+                COALESCE(SUM(amount), 0) as raised_amount,
+                COUNT(*) as donor_count
+            FROM donations 
+            WHERE campaign_id = ? AND status = 'completed'",
+            [$id]
+        );
+        $campaign['raised_amount'] = (float)($stats['raised_amount'] ?? 0);
+        $campaign['donor_count'] = (int)($stats['donor_count'] ?? 0);
+    } catch (Exception $e) {
+        $campaign['raised_amount'] = 0;
+        $campaign['donor_count'] = 0;
+    }
     
     // Calculate matched total
     if ($campaign['matching_enabled']) {
@@ -97,13 +111,17 @@ function enrichCampaign($campaign) {
     }
     
     // Get matchers
-    $campaign['matchers'] = db()->fetchAll(
-        "SELECT id, name, image, amount_pledged, display_order 
-        FROM campaign_matchers 
-        WHERE campaign_id = ? 
-        ORDER BY display_order ASC, id ASC",
-        [$id]
-    );
+    try {
+        $campaign['matchers'] = db()->fetchAll(
+            "SELECT id, name, image, amount_pledged, display_order 
+            FROM campaign_matchers 
+            WHERE campaign_id = ? 
+            ORDER BY display_order ASC, id ASC",
+            [$id]
+        );
+    } catch (Exception $e) {
+        $campaign['matchers'] = [];
+    }
     
     // Convert boolean fields
     $campaign['matching_enabled'] = (bool)$campaign['matching_enabled'];
