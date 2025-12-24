@@ -5,6 +5,10 @@
 
 session_start();
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/security.php';
+
+// Set security headers
+setSecurityHeaders();
 
 // Redirect if already logged in
 if (isAdminLoggedIn()) {
@@ -13,28 +17,43 @@ if (isAdminLoggedIn()) {
 }
 
 $error = '';
+$clientIP = getClientIP();
+
+// Rate limiting: 5 attempts per 5 minutes
+$rateLimitOk = checkRateLimit('login', $clientIP, 5, 300);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-    
-    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    if (!$rateLimitOk) {
+        $error = 'Too many login attempts. Please try again in 5 minutes.';
+        logSecurityEvent('login_rate_limited', ['ip' => $clientIP], 'warning');
+    } elseif (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } else {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        
         $admin = db()->fetch("SELECT * FROM admins WHERE username = ?", [$username]);
         
         if ($admin && password_verify($password, $admin['password'])) {
+            // Clear rate limit on successful login
+            clearRateLimit('login', $clientIP);
+            
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_username'] = $admin['username'];
+            
+            logSecurityEvent('login_success', ['username' => $username], 'info');
+            
             header('Location: index.php');
             exit;
         } else {
             $error = 'Invalid username or password.';
+            logSecurityEvent('login_failed', ['username' => $username, 'ip' => $clientIP], 'warning');
         }
     }
 }
 
 $csrfToken = generateCsrfToken();
+$attemptsRemaining = getRateLimitRemaining('login', $clientIP, 5, 300);
 ?>
 <!DOCTYPE html>
 <html lang="en">

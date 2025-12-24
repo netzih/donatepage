@@ -12,7 +12,8 @@ $stats = [
     'total_donations' => db()->fetch("SELECT COUNT(*) as count FROM donations WHERE status = 'completed'")['count'] ?? 0,
     'total_amount' => db()->fetch("SELECT SUM(amount) as total FROM donations WHERE status = 'completed'")['total'] ?? 0,
     'monthly_donations' => db()->fetch("SELECT COUNT(*) as count FROM donations WHERE status = 'completed' AND frequency = 'monthly'")['count'] ?? 0,
-    'recent' => db()->fetchAll("SELECT * FROM donations ORDER BY created_at DESC LIMIT 10")
+    // Exclude deleted and anonymous pending donations
+    'recent' => db()->fetchAll("SELECT * FROM donations WHERE status != 'deleted' AND (status != 'pending' OR (donor_name IS NOT NULL AND donor_name != '')) ORDER BY created_at DESC LIMIT 10")
 ];
 
 $orgName = getSetting('org_name', 'Donation Platform');
