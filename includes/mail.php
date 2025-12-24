@@ -21,10 +21,28 @@ function sendEmail($to, $subject, $htmlBody, $toName = '') {
         $mail->isSMTP();
         $mail->Host = getSetting('smtp_host');
         $mail->Port = (int) getSetting('smtp_port', 587);
-        $mail->SMTPAuth = true;
-        $mail->Username = getSetting('smtp_user');
-        $mail->Password = getSetting('smtp_pass');
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        
+        // Only enable authentication if username is provided
+        $smtpUser = getSetting('smtp_user');
+        $smtpPass = getSetting('smtp_pass');
+        if (!empty($smtpUser)) {
+            $mail->SMTPAuth = true;
+            $mail->Username = $smtpUser;
+            $mail->Password = $smtpPass;
+        } else {
+            $mail->SMTPAuth = false;
+        }
+        
+        // Use TLS if port is 587, SSL if 465, none otherwise
+        $port = (int) getSetting('smtp_port', 587);
+        if ($port === 587) {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($port === 465) {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPSecure = '';
+            $mail->SMTPAutoTLS = false;
+        }
         
         // Sender
         $mail->setFrom(

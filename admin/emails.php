@@ -70,12 +70,6 @@ function testSmtpConnection($testEmail) {
         if (empty($smtpHost)) {
             return ['success' => false, 'message' => 'SMTP Host is not configured.'];
         }
-        if (empty($smtpUser)) {
-            return ['success' => false, 'message' => 'SMTP Username is not configured.'];
-        }
-        if (empty($smtpPass)) {
-            return ['success' => false, 'message' => 'SMTP Password is not configured.'];
-        }
         if (empty($fromEmail)) {
             return ['success' => false, 'message' => 'From Email is not configured.'];
         }
@@ -90,12 +84,28 @@ function testSmtpConnection($testEmail) {
         // Server settings
         $mail->isSMTP();
         $mail->Host = $smtpHost;
-        $mail->SMTPAuth = true;
-        $mail->Username = $smtpUser;
-        $mail->Password = $smtpPass;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = (int)$smtpPort;
         $mail->Timeout = 10;
+        
+        // Only enable authentication if username is provided (for IP-based auth like smtp2go)
+        if (!empty($smtpUser)) {
+            $mail->SMTPAuth = true;
+            $mail->Username = $smtpUser;
+            $mail->Password = $smtpPass;
+        } else {
+            $mail->SMTPAuth = false;
+        }
+        
+        // Set encryption based on port
+        $port = (int)$smtpPort;
+        if ($port === 587) {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($port === 465) {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPSecure = '';
+            $mail->SMTPAutoTLS = false;
+        }
         
         // Recipients
         $mail->setFrom($fromEmail, $fromName);
