@@ -553,7 +553,12 @@ body.embed-styled .page-wrapper {
     padding: 20px;
 }
 
+body.embed-styled .hero-content {
+    justify-content: flex-end;
+    max-width: 100%;
+}
+
 body.embed-styled .donation-card {
     width: 100%;
-    max-width: 100%;
+    max-width: 420px;
 }
