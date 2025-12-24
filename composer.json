@@ -1,5 +1,5 @@
 {
-    "name": "donation-platform",
+    "name": "netzih/donation-platform",
     "description": "PHP Donation Platform with Stripe/PayPal integration",
     "require": {
         "stripe/stripe-php": "^12.0",
