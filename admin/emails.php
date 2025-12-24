@@ -159,7 +159,7 @@ $csrfToken = generateCsrfToken();
     <title>Email Templates - Admin</title>
     <link rel="stylesheet" href="admin-style.css">
     <!-- Jodit Editor -->
-    <link rel="stylesheet" href="https://unpkg.com/jodit@4.1.16/build/jodit.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/es2021/jodit.min.css">
     <style>
         .test-smtp-section {
             background: #f0f9ff;
@@ -379,7 +379,7 @@ $csrfToken = generateCsrfToken();
         </main>
     </div>
     
-    <script src="https://unpkg.com/jodit@4.1.16/build/jodit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/es2021/jodit.min.js"></script>
     <script>
         // Initialize Jodit editors
         const joditConfig = {

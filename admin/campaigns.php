@@ -169,7 +169,7 @@ if ($action === 'list') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campaigns - Admin</title>
     <link rel="stylesheet" href="admin-style.css">
-    <link rel="stylesheet" href="https://unpkg.com/jodit@4.1.16/build/jodit.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/es2021/jodit.min.css">
     <style>
         .campaigns-grid {
             display: grid;
@@ -642,7 +642,7 @@ if ($action === 'list') {
             <?php endif; ?>
         </main>
     </div>
-    <script src="https://unpkg.com/jodit@4.1.16/build/jodit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/es2021/jodit.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const descriptionArea = document.getElementById('description');
