@@ -1,7 +1,7 @@
 <?php
 /**
  * Confirm Stripe Payment
- * Updates donation record after successful payment
+ * Handles both one-time payments and subscription creation
  */
 
 session_start();
@@ -18,12 +18,18 @@ if (!$input) {
     jsonResponse(['error' => 'Invalid request'], 400);
 }
 
-$paymentIntentId = $input['payment_intent_id'] ?? '';
+$mode = $input['mode'] ?? 'payment';
+$intentId = $input['intent_id'] ?? $input['payment_intent_id'] ?? '';
 $donorName = trim($input['donor_name'] ?? '');
 $donorEmail = trim($input['donor_email'] ?? '');
+$amount = (float)($input['amount'] ?? 0);
 
-if (empty($paymentIntentId)) {
-    jsonResponse(['error' => 'Missing payment intent ID'], 400);
+if (empty($intentId)) {
+    jsonResponse(['error' => 'Missing intent ID'], 400);
+}
+
+if (empty($donorEmail)) {
+    jsonResponse(['error' => 'Email is required'], 400);
 }
 
 // Get Stripe keys
@@ -35,49 +41,146 @@ if (empty($stripeSecretKey)) {
 
 try {
     \Stripe\Stripe::setApiKey($stripeSecretKey);
+    $orgName = getSetting('org_name', 'Donation');
     
-    // Retrieve the PaymentIntent to verify status
-    $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
-    
-    if ($paymentIntent->status !== 'succeeded') {
-        jsonResponse(['error' => 'Payment not completed'], 400);
+    if ($mode === 'subscription') {
+        // Handle subscription creation
+        $setupIntent = \Stripe\SetupIntent::retrieve($intentId);
+        
+        if ($setupIntent->status !== 'succeeded') {
+            jsonResponse(['error' => 'Setup not completed'], 400);
+        }
+        
+        // Create or find customer
+        $customers = \Stripe\Customer::all([
+            'email' => $donorEmail,
+            'limit' => 1
+        ]);
+        
+        if (count($customers->data) > 0) {
+            $customer = $customers->data[0];
+            // Update customer name if provided
+            if ($donorName) {
+                \Stripe\Customer::update($customer->id, ['name' => $donorName]);
+            }
+        } else {
+            $customer = \Stripe\Customer::create([
+                'email' => $donorEmail,
+                'name' => $donorName,
+                'metadata' => ['source' => 'donation_page']
+            ]);
+        }
+        
+        // Attach payment method to customer
+        $paymentMethod = $setupIntent->payment_method;
+        \Stripe\PaymentMethod::retrieve($paymentMethod)->attach([
+            'customer' => $customer->id
+        ]);
+        
+        // Set as default payment method
+        \Stripe\Customer::update($customer->id, [
+            'invoice_settings' => ['default_payment_method' => $paymentMethod]
+        ]);
+        
+        // Create a price for this subscription (or use existing)
+        $price = \Stripe\Price::create([
+            'unit_amount' => (int)($amount * 100),
+            'currency' => 'usd',
+            'recurring' => ['interval' => 'month'],
+            'product_data' => [
+                'name' => "Monthly Donation to $orgName"
+            ]
+        ]);
+        
+        // Create the subscription
+        $subscription = \Stripe\Subscription::create([
+            'customer' => $customer->id,
+            'items' => [['price' => $price->id]],
+            'metadata' => [
+                'donor_name' => $donorName,
+                'donor_email' => $donorEmail,
+                'original_setup_intent' => $intentId
+            ]
+        ]);
+        
+        // Update donation record
+        $donation = db()->fetch(
+            "SELECT * FROM donations WHERE transaction_id = ?",
+            [$intentId]
+        );
+        
+        if ($donation) {
+            db()->update('donations', [
+                'status' => 'completed',
+                'donor_name' => $donorName,
+                'donor_email' => $donorEmail,
+                'transaction_id' => $subscription->id,
+                'metadata' => json_encode([
+                    'subscription_id' => $subscription->id,
+                    'customer_id' => $customer->id,
+                    'type' => 'subscription'
+                ])
+            ], 'id = ?', [$donation['id']]);
+            
+            // Refresh donation data
+            $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
+            
+            // Send emails
+            sendDonorReceipt($donation);
+            sendAdminNotification($donation);
+            
+            jsonResponse([
+                'success' => true,
+                'donationId' => $donation['id'],
+                'subscriptionId' => $subscription->id
+            ]);
+        } else {
+            jsonResponse(['error' => 'Donation record not found'], 404);
+        }
+        
+    } else {
+        // Handle one-time payment
+        $paymentIntent = \Stripe\PaymentIntent::retrieve($intentId);
+        
+        if ($paymentIntent->status !== 'succeeded') {
+            jsonResponse(['error' => 'Payment not completed'], 400);
+        }
+        
+        // Update donation record
+        $donation = db()->fetch(
+            "SELECT * FROM donations WHERE transaction_id = ?",
+            [$intentId]
+        );
+        
+        if (!$donation) {
+            jsonResponse(['error' => 'Donation record not found'], 404);
+        }
+        
+        db()->update('donations', [
+            'status' => 'completed',
+            'donor_name' => $donorName,
+            'donor_email' => $donorEmail
+        ], 'id = ?', [$donation['id']]);
+        
+        // Refresh donation data
+        $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
+        
+        // Send emails
+        if (!empty($donorEmail)) {
+            sendDonorReceipt($donation);
+        }
+        sendAdminNotification($donation);
+        
+        jsonResponse([
+            'success' => true,
+            'donationId' => $donation['id']
+        ]);
     }
-    
-    // Find and update the donation record
-    $donation = db()->fetch(
-        "SELECT * FROM donations WHERE transaction_id = ?",
-        [$paymentIntentId]
-    );
-    
-    if (!$donation) {
-        jsonResponse(['error' => 'Donation record not found'], 404);
-    }
-    
-    // Update donation with customer info
-    db()->update('donations', [
-        'status' => 'completed',
-        'donor_name' => $donorName,
-        'donor_email' => $donorEmail
-    ], 'id = ?', [$donation['id']]);
-    
-    // Refresh donation data
-    $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
-    
-    // Send emails
-    if (!empty($donorEmail)) {
-        sendDonorReceipt($donation);
-    }
-    sendAdminNotification($donation);
-    
-    jsonResponse([
-        'success' => true,
-        'donationId' => $donation['id']
-    ]);
     
 } catch (\Stripe\Exception\ApiErrorException $e) {
     error_log("Stripe error: " . $e->getMessage());
-    jsonResponse(['error' => 'Payment verification error'], 500);
+    jsonResponse(['error' => 'Payment error: ' . $e->getMessage()], 500);
 } catch (Exception $e) {
     error_log("Error: " . $e->getMessage());
-    jsonResponse(['error' => 'An error occurred'], 500);
+    jsonResponse(['error' => 'An error occurred: ' . $e->getMessage()], 500);
 }

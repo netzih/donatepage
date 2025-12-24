@@ -1,7 +1,7 @@
 <?php
 /**
- * Stripe Payment Intent API
- * Creates a PaymentIntent for Stripe Payment Elements
+ * Stripe Payment API
+ * Creates PaymentIntent for one-time or SetupIntent + Subscription for monthly
  */
 
 session_start();
@@ -41,34 +41,73 @@ try {
     
     $orgName = getSetting('org_name', 'Donation');
     
-    // Create a PaymentIntent
-    $paymentIntent = \Stripe\PaymentIntent::create([
-        'amount' => (int)($amount * 100), // Convert to cents
-        'currency' => 'usd',
-        'description' => ($frequency === 'monthly' ? 'Monthly ' : '') . "Donation to $orgName",
-        'metadata' => [
-            'frequency' => $frequency,
+    if ($frequency === 'monthly') {
+        // For subscriptions, we need to create a SetupIntent first
+        // The actual subscription will be created after payment method is confirmed
+        
+        $setupIntent = \Stripe\SetupIntent::create([
+            'payment_method_types' => ['card'],
+            'metadata' => [
+                'frequency' => 'monthly',
+                'amount' => $amount,
+                'org_name' => $orgName
+            ]
+        ]);
+        
+        // Store pending donation
+        $donationId = db()->insert('donations', [
+            'amount' => $amount,
+            'frequency' => 'monthly',
+            'payment_method' => 'stripe',
+            'transaction_id' => $setupIntent->id,
+            'status' => 'pending',
+            'metadata' => json_encode([
+                'setup_intent_id' => $setupIntent->id,
+                'type' => 'subscription'
+            ])
+        ]);
+        
+        jsonResponse([
+            'clientSecret' => $setupIntent->client_secret,
+            'donationId' => $donationId,
+            'mode' => 'subscription',
             'amount' => $amount
-        ],
-        'automatic_payment_methods' => [
-            'enabled' => true,
-        ],
-    ]);
-    
-    // Store pending donation in database
-    $donationId = db()->insert('donations', [
-        'amount' => $amount,
-        'frequency' => $frequency,
-        'payment_method' => 'stripe',
-        'transaction_id' => $paymentIntent->id,
-        'status' => 'pending',
-        'metadata' => json_encode(['payment_intent_id' => $paymentIntent->id])
-    ]);
-    
-    jsonResponse([
-        'clientSecret' => $paymentIntent->client_secret,
-        'donationId' => $donationId
-    ]);
+        ]);
+        
+    } else {
+        // One-time payment - use PaymentIntent
+        $paymentIntent = \Stripe\PaymentIntent::create([
+            'amount' => (int)($amount * 100),
+            'currency' => 'usd',
+            'description' => "Donation to $orgName",
+            'metadata' => [
+                'frequency' => 'once',
+                'amount' => $amount
+            ],
+            'automatic_payment_methods' => [
+                'enabled' => true,
+            ],
+        ]);
+        
+        // Store pending donation
+        $donationId = db()->insert('donations', [
+            'amount' => $amount,
+            'frequency' => 'once',
+            'payment_method' => 'stripe',
+            'transaction_id' => $paymentIntent->id,
+            'status' => 'pending',
+            'metadata' => json_encode([
+                'payment_intent_id' => $paymentIntent->id,
+                'type' => 'payment'
+            ])
+        ]);
+        
+        jsonResponse([
+            'clientSecret' => $paymentIntent->client_secret,
+            'donationId' => $donationId,
+            'mode' => 'payment'
+        ]);
+    }
     
 } catch (\Stripe\Exception\ApiErrorException $e) {
     error_log("Stripe error: " . $e->getMessage());

@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let paymentElement = null;
     let clientSecret = null;
     let donationId = null;
+    let paymentMode = 'payment'; // 'payment' or 'subscription'
 
     // Elements
     const amountBtns = document.querySelectorAll('.amount-btn');
@@ -76,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stripeBtn.textContent = 'Loading...';
 
         try {
-            // Create PaymentIntent
+            // Create PaymentIntent or SetupIntent
             const response = await fetch('api/create-payment-intent.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -95,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             clientSecret = data.clientSecret;
             donationId = data.donationId;
+            paymentMode = data.mode || 'payment';
 
             // Initialize Payment Elements
             const appearance = {
@@ -116,8 +118,16 @@ document.addEventListener('DOMContentLoaded', () => {
             amountStep.style.display = 'none';
             paymentStep.style.display = 'block';
 
-            // Update step indicator
+            // Update step indicator and button text
             document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
+
+            // Update button text for monthly
+            if (frequency === 'monthly') {
+                document.getElementById('button-text').textContent =
+                    `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
+            } else {
+                document.getElementById('button-text').textContent = 'Complete Donation';
+            }
 
         } catch (error) {
             showMessage(error.message, 'error');
@@ -165,18 +175,32 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(true);
 
             try {
-                const { error, paymentIntent } = await stripe.confirmPayment({
-                    elements,
-                    confirmParams: {
-                        return_url: window.location.origin + '/success.php',
-                        receipt_email: donorEmail.value.trim()
-                    },
-                    redirect: 'if_required'
-                });
+                let result;
 
-                if (error) {
-                    if (error.type === 'card_error' || error.type === 'validation_error') {
-                        showMessage(error.message, 'error');
+                if (paymentMode === 'subscription') {
+                    // For subscriptions, use confirmSetup
+                    result = await stripe.confirmSetup({
+                        elements,
+                        confirmParams: {
+                            return_url: window.location.origin + '/success.php'
+                        },
+                        redirect: 'if_required'
+                    });
+                } else {
+                    // For one-time payments, use confirmPayment
+                    result = await stripe.confirmPayment({
+                        elements,
+                        confirmParams: {
+                            return_url: window.location.origin + '/success.php',
+                            receipt_email: donorEmail.value.trim()
+                        },
+                        redirect: 'if_required'
+                    });
+                }
+
+                if (result.error) {
+                    if (result.error.type === 'card_error' || result.error.type === 'validation_error') {
+                        showMessage(result.error.message, 'error');
                     } else {
                         showMessage('An unexpected error occurred.', 'error');
                     }
@@ -184,15 +208,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                if (paymentIntent && paymentIntent.status === 'succeeded') {
-                    // Confirm payment on server
+                // Get the intent ID based on mode
+                const intentId = paymentMode === 'subscription'
+                    ? result.setupIntent?.id
+                    : result.paymentIntent?.id;
+
+                const intentStatus = paymentMode === 'subscription'
+                    ? result.setupIntent?.status
+                    : result.paymentIntent?.status;
+
+                if (intentId && intentStatus === 'succeeded') {
+                    // Confirm payment/subscription on server
                     const confirmResponse = await fetch('api/confirm-payment.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            payment_intent_id: paymentIntent.id,
+                            mode: paymentMode,
+                            intent_id: intentId,
                             donor_name: donorName.value.trim(),
-                            donor_email: donorEmail.value.trim()
+                            donor_email: donorEmail.value.trim(),
+                            amount: selectedAmount
                         })
                     });
 
@@ -204,9 +239,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         showMessage(confirmData.error || 'Payment confirmation failed', 'error');
                         setLoading(false);
                     }
+                } else {
+                    showMessage('Payment was not completed. Please try again.', 'error');
+                    setLoading(false);
                 }
 
             } catch (err) {
+                console.error('Payment error:', err);
                 showMessage('Payment failed. Please try again.', 'error');
                 setLoading(false);
             }
