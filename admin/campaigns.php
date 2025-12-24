@@ -353,7 +353,7 @@ if ($action === 'list') {
                         </div>
                         
                         <div class="campaign-actions">
-                            <a href="/campaign?slug=<?= h($c['slug']) ?>" target="_blank" class="btn btn-secondary btn-sm">View</a>
+                            <a href="/campaign/<?= h($c['slug']) ?>" target="_blank" class="btn btn-secondary btn-sm">View</a>
                             <a href="?action=edit&id=<?= $c['id'] ?>" class="btn btn-primary btn-sm">Edit</a>
                         </div>
                     </div>
@@ -441,7 +441,7 @@ if ($action === 'list') {
             <section class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2>Edit Campaign</h2>
-                    <a href="/campaign?slug=<?= h($campaign['slug']) ?>" target="_blank" class="btn btn-secondary btn-sm">
+                    <a href="/campaign/<?= h($campaign['slug']) ?>" target="_blank" class="btn btn-secondary btn-sm">
                         View Live Page →
                     </a>
                 </div>
