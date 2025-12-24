@@ -120,8 +120,8 @@ function setSecurityHeaders() {
     // Content Security Policy (adjust as needed)
     // Note: Stripe requires certain sources
     $csp = "default-src 'self'; ";
-    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com; ";
-    $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ";
+    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com https://cdnjs.cloudflare.com https://unpkg.com; ";
+    $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; ";
     $csp .= "font-src 'self' https://fonts.gstatic.com; ";
     $csp .= "img-src 'self' data: https:; ";
     $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com; ";
