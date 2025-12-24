@@ -160,6 +160,6 @@ $csrfToken = generateCsrfToken();
             currencySymbol: '<?= h($currencySymbol) ?>'
         };
     </script>
-    <script src="assets/js/donate.js"></script>
+    <script src="assets/js/donate.js?v=2"></script>
 </body>
 </html>
