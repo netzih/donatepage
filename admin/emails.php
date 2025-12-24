@@ -159,7 +159,7 @@ $csrfToken = generateCsrfToken();
     <title>Email Templates - Admin</title>
     <link rel="stylesheet" href="admin-style.css">
     <!-- Jodit Editor -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/3.24.7/jodit.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/jodit.es2018.min.css">
     <style>
         .test-smtp-section {
             background: #f0f9ff;
@@ -379,19 +379,30 @@ $csrfToken = generateCsrfToken();
         </main>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jodit/3.24.7/jodit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jodit/4.1.16/jodit.es2018.min.js"></script>
     <script>
         // Initialize Jodit editors
         const joditConfig = {
+            uploader: {
+                url: '/api/upload-jodit.php'
+            },
+            toolbarButtonSize: 'middle',
+            buttons: [
+                'source', '|',
+                'bold', 'italic', '|',
+                'ul', 'ol', '|',
+                'font', 'fontsize', 'brush', 'paragraph', '|',
+                'image', 'video', 'table', 'link', '|',
+                'align', 'undo', 'redo', '|',
+                'hr', 'eraser', 'fullsize'
+            ],
             height: 300,
-            toolbarButtonSize: 'small',
-            buttons: 'bold,italic,underline,|,ul,ol,|,link,image,|,align,|,source',
             askBeforePasteHTML: false,
             askBeforePasteFromWord: false
         };
         
-        new Jodit('#email_donor_body', joditConfig);
-        new Jodit('#email_admin_body', joditConfig);
+        const donorEditor = Jodit.make('#email_donor_body', joditConfig);
+        const adminEditor = Jodit.make('#email_admin_body', joditConfig);
         
         function toggleDebug() {
             const output = document.getElementById('debugOutput');
