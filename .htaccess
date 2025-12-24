@@ -1,9 +1,19 @@
 # Enable URL rewriting
 RewriteEngine On
 
+# Set default directory index
+DirectoryIndex index.php index.html
+
 # Redirect to HTTPS
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# =========================================
+# HOMEPAGE - Serve index.php for root URL
+# =========================================
+
+# Rewrite root to index.php
+RewriteRule ^$ index.php [L]
 
 # =========================================
 # CLEAN URLs - Remove .php extension
