@@ -31,12 +31,14 @@ RewriteRule ^ - [L]
 RewriteCond %{THE_REQUEST} \s/([^.]+)\.php[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L]
 
+# Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
+# Must be BEFORE the generic .php rewrite
+RewriteCond %{REQUEST_URI} !campaign\.php
+RewriteRule ^campaign/([a-zA-Z0-9_-]+)/?$ campaign.php?slug=$1 [L,QSA]
+
 # Internally rewrite /page to /page.php
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.*)$ $1.php [L]
-
-# Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
-RewriteRule ^campaign/([a-zA-Z0-9_-]+)/?$ campaign.php?slug=$1 [L,QSA]
 
 # Handle /admin/ routes
 RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
