@@ -526,14 +526,22 @@ body.embed-mode .hero {
 body.embed-mode .hero-content {
     display: block;
     width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     gap: 0;
 }
 
+body.embed-mode .hero-text {
+    display: none;
+    /* Hide hero text in embed mode */
+}
+
 body.embed-mode .donation-card {
-    margin: 0 auto;
+    margin: 0 auto !important;
+    /* Force centering in all embeds */
     width: 100%;
     max-width: 480px;
+    display: block;
 }
 
 body.embed-mode .secure-badge {

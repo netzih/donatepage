@@ -53,7 +53,7 @@ if ($embedMode > 0) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=2">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
 <body class="<?= $embedMode === 1 ? 'embed-mode embed-minimal' : ($embedMode === 2 ? 'embed-mode embed-styled' : '') ?>">
     <div class="page-wrapper" style="<?= $bgPath && $embedMode !== 1 ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
@@ -190,6 +190,21 @@ if ($embedMode > 0) {
             currencySymbol: '<?= h($currencySymbol) ?>'
         };
     </script>
-    <script src="assets/js/donate.js?v=3"></script>
+    <script src="assets/js/donate.js?v=<?= filemtime(__DIR__ . '/assets/js/donate.js') ?>"></script>
+    <script>
+        // If in iframe, report height to parent
+        if (window.self !== window.top) {
+            const sendHeight = () => {
+                window.parent.postMessage({
+                    type: 'resize',
+                    height: document.body.scrollHeight
+                }, '*');
+            };
+            window.addEventListener('load', sendHeight);
+            if (window.ResizeObserver) {
+                new ResizeObserver(sendHeight).observe(document.body);
+            }
+        }
+    </script>
 </body>
 </html>
