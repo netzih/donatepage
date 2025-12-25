@@ -7,9 +7,6 @@ session_start();
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/security.php';
 
-// Set security headers
-setSecurityHeaders();
-
 // Redirect if already logged in
 if (isAdminLoggedIn()) {
     header('Location: index.php');

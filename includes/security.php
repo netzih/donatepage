@@ -102,8 +102,13 @@ function cleanupRateLimits($olderThanSeconds = 3600) {
  * Call this at the start of every page
  */
 function setSecurityHeaders() {
+    $isEmbed = isset($_GET['embed']);
+    
     // Prevent clickjacking
-    header('X-Frame-Options: SAMEORIGIN');
+    // If embedding is requested, we allow it by not sending SAMEORIGIN
+    if (!$isEmbed) {
+        header('X-Frame-Options: SAMEORIGIN');
+    }
     
     // Prevent MIME type sniffing
     header('X-Content-Type-Options: nosniff');
@@ -125,7 +130,15 @@ function setSecurityHeaders() {
     $csp .= "font-src 'self' https://fonts.gstatic.com; ";
     $csp .= "img-src 'self' data: https:; ";
     $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com; ";
-    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com;";
+    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com; ";
+    
+    // Allow iframing from any site if embed parameter is present
+    if ($isEmbed) {
+        $csp .= "frame-ancestors 'self' *; ";
+    } else {
+        $csp .= "frame-ancestors 'self'; ";
+    }
+    
     header("Content-Security-Policy: $csp");
     
     // HSTS (only if on HTTPS)

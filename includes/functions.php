@@ -4,6 +4,12 @@
  */
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/security.php';
+
+// Set security headers
+if (function_exists('setSecurityHeaders')) {
+    setSecurityHeaders();
+}
 
 // Standardize timezone from settings
 $tz = getSetting('timezone', 'America/Los_Angeles');
