@@ -511,17 +511,29 @@ body {
 
 /* Embed Mode - for iframe usage */
 /* Common embed styles */
-body.embed-mode .hero {
-    padding: 20px;
+body.embed-mode .page-wrapper {
     min-height: auto;
-    display: block;
+}
+
+body.embed-mode .hero {
+    padding: 20px 0;
+    min-height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 body.embed-mode .hero-content {
-    flex-direction: column;
-    max-width: 500px;
+    display: block;
+    width: 100%;
     margin: 0 auto;
     gap: 0;
+}
+
+body.embed-mode .donation-card {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 480px;
 }
 
 body.embed-mode .secure-badge {
@@ -535,35 +547,25 @@ body.embed-minimal {
 }
 
 body.embed-minimal .page-wrapper {
-    min-height: auto;
     background: transparent !important;
     padding: 0;
 }
 
 body.embed-minimal .donation-card {
-    width: 100%;
-    max-width: 100%;
     box-shadow: none;
     border: 1px solid var(--border-light);
+    border-radius: 8px;
 }
 
 /* Embed Styled (embed=2) - Keeps background */
 body.embed-styled .page-wrapper {
-    min-height: auto;
     padding: 20px;
 }
 
-body.embed-styled .hero-content {
-    display: block;
-    max-width: 1200px;
+body.embed-styled .donation-card {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
 
-body.embed-styled .donation-card {
-    width: 420px;
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: 40px;
-}
 
 /* ========================================
    CAMPAIGN PAGE STYLES

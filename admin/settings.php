@@ -173,7 +173,7 @@ $csrfToken = generateCsrfToken();
                 <div class="form-group">
                     <label>Minimal Embed (White Background)</label>
                     <div style="display: flex; gap: 8px;">
-                        <textarea id="embed-minimal" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=1" width="100%" height="600" frameborder="0" allow="payment" style="max-width: 500px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <textarea id="embed-minimal" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=1" width="100%" height="650" frameborder="0" allow="payment" style="border:none; overflow:hidden; display:block;"></iframe>') ?></textarea>
                         <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-minimal')" style="white-space: nowrap;">📋 Copy</button>
                     </div>
                     <small>Clean white background, perfect for light-themed websites</small>
@@ -182,7 +182,7 @@ $csrfToken = generateCsrfToken();
                 <div class="form-group" style="margin-top: 20px;">
                     <label>Styled Embed (With Background)</label>
                     <div style="display: flex; gap: 8px;">
-                        <textarea id="embed-styled" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=2" width="100%" height="700" frameborder="0" allow="payment" style="max-width: 600px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <textarea id="embed-styled" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=2" width="100%" height="750" frameborder="0" allow="payment" style="border:none; overflow:hidden; display:block;"></iframe>') ?></textarea>
                         <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-styled')" style="white-space: nowrap;">📋 Copy</button>
                     </div>
                     <small>Includes your background image and branding</small>
