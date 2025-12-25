@@ -119,8 +119,8 @@ function setSecurityHeaders() {
     // Referrer policy
     header('Referrer-Policy: strict-origin-when-cross-origin');
     
-    // Permissions policy (formerly Feature-Policy)
-    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    // Permissions policy (allow payments)
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(self "https://js.stripe.com" "https://www.paypal.com")');
     
     // Content Security Policy (adjust as needed)
     // Note: Stripe requires certain sources

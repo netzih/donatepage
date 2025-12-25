@@ -3,8 +3,8 @@
  * Public Donation Page
  */
 
-session_start();
 require_once __DIR__ . '/includes/functions.php';
+session_start();
 
 $settings = getAllSettings();
 $presetAmounts = getPresetAmounts();

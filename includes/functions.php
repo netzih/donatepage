@@ -3,6 +3,18 @@
  * Helper Functions
  */
 
+// Configure session cookies BEFORE session_start()
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'None'
+    ]);
+}
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/security.php';
 

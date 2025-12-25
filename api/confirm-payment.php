@@ -4,9 +4,9 @@
  * Handles both one-time payments and subscription creation
  */
 
+require_once __DIR__ . '/../includes/functions.php';
 session_start();
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
 require_once __DIR__ . '/../includes/civicrm.php';
 
