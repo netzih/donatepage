@@ -18,8 +18,17 @@ if (!$input) {
 }
 
 // Validate CSRF
-if (!verifyCsrfToken($input['csrf_token'] ?? '')) {
-    jsonResponse(['error' => 'Invalid request token'], 403);
+$providedToken = $input['csrf_token'] ?? '';
+$storedToken = $_SESSION['csrf_token'] ?? '';
+$isMatch = verifyCsrfToken($providedToken);
+
+if (!$isMatch) {
+    error_log("PayPal CSRF Failure in iframe context:");
+    error_log("- Session ID: " . session_id());
+    error_log("- Provided Token: " . substr($providedToken, 0, 8) . "...");
+    error_log("- Stored Token: " . ($storedToken ? substr($storedToken, 0, 8) . "..." : "EMPTY"));
+    error_log("- Referer: " . ($_SERVER['HTTP_REFERER'] ?? 'NONE'));
+    jsonResponse(['error' => 'Invalid request token (Session/CSRF error)'], 403);
 }
 
 $action = $input['action'] ?? '';

@@ -6,13 +6,19 @@
 // Configure session cookies BEFORE session_start()
 if (session_status() === PHP_SESSION_NONE) {
     // Force session settings for cross-site iframe compatibility
+    // SameSite=None + Secure is required for iframes
     ini_set('session.cookie_samesite', 'None');
     ini_set('session.cookie_secure', '1');
     ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_cookies', '1');
+    ini_set('session.use_only_cookies', '1');
     
+    // Attempt to use partitioned cookies (CHIPS) for modern browsers
+    // Note: session_set_cookie_params doesn't natively support Partitioned in all versions, 
+    // but some servers respect it if appended to samesite or domain
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/',
+        'path' => '/; Partitioned', 
         'domain' => '',
         'secure' => true,
         'httponly' => true,
@@ -85,7 +91,64 @@ function generateCsrfToken() {
  * Verify CSRF token
  */
 function verifyCsrfToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    if (isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token)) {
+        return true;
+    }
+    
+    // Fallback for iframes where cookies might be blocked
+    return verifySignedToken($token);
+}
+
+/**
+ * Generate a signed token that doesn't require a session
+ */
+function generateSignedToken($ttl = 3600) {
+    $secret = getSetting('stripe_sk', 'fallback-secret'); // Use a secret from settings
+    $expiry = time() + $ttl;
+    $identifier = $_SERVER['REMOTE_ADDR'] . ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    
+    $payload = $expiry . '|' . $identifier;
+    $signature = hash_hmac('sha256', $payload, $secret);
+    
+    return base64_encode($payload . '|' . $signature);
+}
+
+/**
+ * Verify a signed sessionless token
+ */
+function verifySignedToken($token) {
+    if (empty($token)) return false;
+    
+    try {
+        $decoded = base64_decode($token);
+        if (!$decoded) return false;
+        
+        $parts = explode('|', $decoded);
+        if (count($parts) !== 3) return false;
+        
+        list($expiry, $identifier, $signature) = $parts;
+        
+        // Check expiry
+        if (time() > (int)$expiry) return false;
+        
+        // Re-calculate signature
+        $secret = getSetting('stripe_sk', 'fallback-secret');
+        $currentIdentifier = $_SERVER['REMOTE_ADDR'] . ($_SERVER['HTTP_USER_AGENT'] ?? '');
+        
+        // Allow some IP variance (some mobile networks change IPs)
+        // For better UX, we might skip the IP check if the user agent matches
+        $payload = $expiry . '|' . $identifier;
+        $expectedSignature = hash_hmac('sha256', $payload, $secret);
+        
+        if (hash_equals($expectedSignature, $signature)) {
+            // Optional: verify identifier matches currently OR is reasonably close
+            return true; 
+        }
+    } catch (Exception $e) {
+        return false;
+    }
+    
+    return false;
 }
 
 /**

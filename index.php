@@ -18,13 +18,16 @@ $logoPath = $settings['logo_path'] ?? '';
 $bgPath = $settings['background_path'] ?? '';
 $currencySymbol = $settings['currency_symbol'] ?? '$';
 
-// Generate CSRF token for API calls
-$csrfToken = generateCsrfToken();
-
 // Check for embed mode (for iframe usage)
-// embed=1: Minimal (white background, no header/footer)
-// embed=2: Styled (keeps background, removes navbar/footer)
 $embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
+
+// Generate CSRF token for API calls
+// For embeds, we use a signed sessionless token to avoid 3rd-party cookie issues
+if ($embedMode > 0) {
+    $csrfToken = generateSignedToken();
+} else {
+    $csrfToken = generateCsrfToken();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
