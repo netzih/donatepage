@@ -5,6 +5,11 @@
 
 // Configure session cookies BEFORE session_start()
 if (session_status() === PHP_SESSION_NONE) {
+    // Force session settings for cross-site iframe compatibility
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', '1');
+    ini_set('session.cookie_httponly', '1');
+    
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',

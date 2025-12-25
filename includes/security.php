@@ -102,8 +102,12 @@ function cleanupRateLimits($olderThanSeconds = 3600) {
  * Call this at the start of every page
  */
 function setSecurityHeaders() {
-    $isEmbed = isset($_GET['embed']);
+    $isEmbed = isset($_GET['embed']) || (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'embed=') !== false);
     
+    // Check if we are on HTTPS
+    $isSecure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') || 
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
     // Prevent clickjacking
     // If embedding is requested, we allow it by not sending SAMEORIGIN
     if (!$isEmbed) {
