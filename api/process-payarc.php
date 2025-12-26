@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../includes/functions.php';
+session_start();
 
 // Set JSON response header
 header('Content-Type: application/json');
@@ -27,7 +28,12 @@ if (!$payarcEnabled || empty($payarcBearerToken)) {
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Verify CSRF token
-if (!verifyCsrfToken($input['csrf_token'] ?? '')) {
+$providedToken = $input['csrf_token'] ?? '';
+if (!verifyCsrfToken($providedToken)) {
+    error_log("PayArc CSRF Failure:");
+    error_log("- Session ID: " . session_id());
+    error_log("- Provided Token: " . substr($providedToken, 0, 20) . "...");
+    error_log("- Session Token: " . ($_SESSION['csrf_token'] ?? 'EMPTY'));
     jsonResponse(['error' => 'Invalid request'], 403);
 }
 
