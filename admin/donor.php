@@ -211,7 +211,7 @@ $csrfToken = generateCsrfToken();
             margin-bottom: 6px;
             font-weight: 600;
         }
-        .modal-content input {
+        .modal-content input:not([type="checkbox"]) {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
