@@ -297,19 +297,29 @@ try {
             }
             
             // Create subscription
+            // Create subscription - include card details since customer doesn't have card attached
             $subscriptionData = [
                 'customer_id' => $customerId,
-                'amount' => $amount * 100, // cents
+                'amount' => (string)($amount * 100), // cents as string
                 'currency' => 'usd',
                 'interval' => 'month',
                 'interval_count' => 1,
-                'statement_description' => 'Monthly Donation'
+                'statement_description' => 'Monthly Donation',
+                // Include card details for the subscription
+                'card_number' => $cardNumber,
+                'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
+                'exp_year' => (string)$fullYear,
+                'cvv' => $cvv,
+                'card_source' => 'INTERNET'
             ];
             
+            error_log("PayArc subscription request: " . json_encode($subscriptionData));
             $subResult = payarcRequest('/subscriptions', $subscriptionData, $payarcBearerToken, $payarcMode);
+            error_log("PayArc subscription response: " . json_encode($subResult));
             
             if (isset($subResult['error']) || ($subResult['http_code'] ?? 0) >= 400) {
                 $errorMsg = $subResult['message'] ?? $subResult['error'] ?? 'Failed to create subscription';
+                error_log("PayArc subscription error: " . json_encode($subResult));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
