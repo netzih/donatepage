@@ -46,6 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'created_at' => date('Y-m-d H:i:s')
         ];
         
+        // Add donor_id
+        $donationData['donor_id'] = getOrCreateDonor($donationData['donor_name'], $donationData['donor_email']);
+        
         // Add campaign if specified
         if (!empty($_POST['campaign_id'])) {
             $donationData['campaign_id'] = (int)$_POST['campaign_id'];
@@ -100,6 +103,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Exception $e2) {
                 $error = 'Failed to update donation: ' . $e2->getMessage();
             }
+        }
+
+        if (empty($error) && !empty($_POST['redirect_to'])) {
+            header('Location: ' . $_POST['redirect_to']);
+            exit;
         }
     }
 }
@@ -499,8 +507,8 @@ $queryString = http_build_query($queryParams);
                                 <td>#<?= $d['id'] ?></td>
                                 <td><?= date('M j, Y g:ia', strtotime($d['created_at'])) ?></td>
                                 <td>
-                                    <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="donor-link">
+                                    <?php if ($d['donor_id']): ?>
+                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_name'] ?: 'Anonymous') ?>
                                         </a>
                                     <?php else: ?>
@@ -508,8 +516,8 @@ $queryString = http_build_query($queryParams);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="donor-link">
+                                    <?php if ($d['donor_id']): ?>
+                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_email']) ?>
                                         </a>
                                     <?php else: ?>
@@ -553,8 +561,8 @@ $queryString = http_build_query($queryParams);
                                 <td><span class="status-<?= $d['status'] ?>"><?= ucfirst($d['status']) ?></span></td>
                                 <td>
                                     <div class="action-btns">
-                                        <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="btn btn-xs btn-info">
+                                        <?php if ($d['donor_id']): ?>
+                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="btn btn-xs btn-info">
                                             View
                                         </a>
                                         <?php endif; ?>

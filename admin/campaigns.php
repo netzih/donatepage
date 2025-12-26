@@ -422,6 +422,7 @@ if ($action === 'list') {
                         
                         <div class="campaign-actions">
                             <a href="/campaign/<?= h($c['slug']) ?>" target="_blank" class="btn btn-secondary btn-sm">View</a>
+                            <a href="campaign-dashboard.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm">Manage</a>
                             <a href="?action=edit&id=<?= $c['id'] ?>" class="btn btn-primary btn-sm">Edit</a>
                         </div>
                     </div>

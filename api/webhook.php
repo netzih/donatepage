@@ -53,6 +53,7 @@ try {
                     'status' => 'completed',
                     'donor_name' => $customerName,
                     'donor_email' => $customerEmail,
+                    'donor_id' => getOrCreateDonor($customerName, $customerEmail),
                     'transaction_id' => $paymentIntentId
                 ], 'id = ?', [$donation['id']]);
                 
@@ -82,6 +83,7 @@ try {
                     'frequency' => 'monthly',
                     'donor_name' => $customerName,
                     'donor_email' => $customerEmail,
+                    'donor_id' => getOrCreateDonor($customerName, $customerEmail),
                     'payment_method' => 'stripe',
                     'transaction_id' => $invoice->id,
                     'status' => 'completed'

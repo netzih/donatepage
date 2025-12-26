@@ -118,6 +118,7 @@ try {
                 'status' => 'completed',
                 'donor_name' => $donorName,
                 'donor_email' => $donorEmail,
+                'donor_id' => getOrCreateDonor($donorName, $donorEmail),
                 'transaction_id' => $subscription->id,
                 'metadata' => json_encode([
                     'subscription_id' => $subscription->id,
@@ -189,7 +190,8 @@ try {
         $updateData = [
             'status' => 'completed',
             'donor_name' => $donorName,
-            'donor_email' => $donorEmail
+            'donor_email' => $donorEmail,
+            'donor_id' => getOrCreateDonor($donorName, $donorEmail)
         ];
         
         // Add optional display fields (gracefully handle missing columns)

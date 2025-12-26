@@ -9,26 +9,37 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/functions.php';
 requireAdmin();
 
-$donorEmail = $_GET['email'] ?? '';
+$donorId = (int)($_GET['id'] ?? 0);
 
-if (empty($donorEmail)) {
+if (empty($donorId)) {
     header('Location: donations.php');
     exit;
 }
+
+// Get donor info
+$donor = db()->fetch("SELECT * FROM donors WHERE id = ?", [$donorId]);
+if (!$donor) {
+    header('Location: donations.php');
+    exit;
+}
+
+$donorName = $donor['name'];
+$donorEmail = $donor['email'];
 
 // Get all donations from this donor
 $donations = db()->fetchAll(
-    "SELECT * FROM donations WHERE donor_email = ? ORDER BY created_at DESC",
-    [$donorEmail]
+    "SELECT * FROM donations WHERE donor_id = ? ORDER BY created_at DESC",
+    [$donorId]
 );
 
 if (empty($donations)) {
-    header('Location: donations.php');
-    exit;
+    // Fallback for donors with no donations linked yet if any
+    $donations = db()->fetchAll(
+        "SELECT * FROM donations WHERE donor_email = ? ORDER BY created_at DESC",
+        [$donorEmail]
+    );
 }
 
-// Get donor info from first donation
-$donorName = $donations[0]['donor_name'] ?? 'Unknown';
 $firstDonation = end($donations);
 
 // Calculate totals - exclude refunded, cancelled, and deleted donations
@@ -320,6 +331,9 @@ $csrfToken = generateCsrfToken();
                             <?php endif; ?>
                             <td>
                                 <div class="action-btns">
+                                    <button class="btn btn-sm btn-primary" onclick="editDonation(<?= h(json_encode($d)) ?>)">
+                                        Edit
+                                    </button>
                                     <?php if ($d['status'] === 'completed' && $d['payment_method'] === 'stripe'): ?>
                                     <button class="btn btn-sm btn-warning" onclick="refundDonation(<?= $d['id'] ?>, '<?= h($d['transaction_id']) ?>')">
                                         Refund
@@ -340,6 +354,63 @@ $csrfToken = generateCsrfToken();
         </main>
     </div>
     
+    <!-- Edit Donation Modal -->
+    <div id="edit-donation-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:white; padding:30px; border-radius:16px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto;">
+            <h2>Edit Donation</h2>
+            <form method="POST" action="donations.php">
+                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                <input type="hidden" name="action" value="update_donation">
+                <input type="hidden" id="edit_donation_id" name="donation_id">
+                <input type="hidden" name="redirect_to" value="<?= h($_SERVER['REQUEST_URI']) ?>">
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_name">Donor Name *</label>
+                        <input type="text" id="edit_donor_name" name="donor_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_email">Donor Email</label>
+                        <input type="email" id="edit_donor_email" name="donor_email">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_amount">Amount ($)</label>
+                        <input type="number" id="edit_amount" name="amount" step="0.01" min="1" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_display_name">Display Name (Wall)</label>
+                        <input type="text" id="edit_display_name" name="display_name">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_donation_message">Wall Message</label>
+                    <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
+                        Make donation anonymous
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_matched" name="is_matched">
+                        <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                    <button type="button" onclick="document.getElementById('edit-donation-modal').style.display='none'" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Edit Amount Modal -->
     <div class="modal" id="editAmountModal">
         <div class="modal-content">
@@ -358,6 +429,19 @@ $csrfToken = generateCsrfToken();
     
     <script>
         const csrfToken = '<?= $csrfToken ?>';
+        
+        function editDonation(donation) {
+            document.getElementById('edit_donation_id').value = donation.id;
+            document.getElementById('edit_donor_name').value = donation.donor_name || '';
+            document.getElementById('edit_donor_email').value = donation.donor_email || '';
+            document.getElementById('edit_amount').value = donation.amount;
+            document.getElementById('edit_display_name').value = donation.display_name || '';
+            document.getElementById('edit_donation_message').value = donation.donation_message || '';
+            document.getElementById('edit_is_anonymous').checked = donation.is_anonymous == 1;
+            document.getElementById('edit_is_matched').checked = donation.is_matched == 1;
+            
+            document.getElementById('edit-donation-modal').style.display = 'flex';
+        }
         
         function showEditAmountModal(subId, currentAmount) {
             document.getElementById('subscriptionId').value = subId;

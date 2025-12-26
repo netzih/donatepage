@@ -229,6 +229,24 @@ function getPresetAmounts() {
 }
 
 /**
+ * Get or create a donor by email
+ */
+function getOrCreateDonor($name, $email) {
+    if (empty($email)) return null;
+    
+    $donor = db()->fetch("SELECT id FROM donors WHERE email = ?", [$email]);
+    if ($donor) {
+        return $donor['id'];
+    }
+    
+    return db()->insert('donors', [
+        'name' => $name,
+        'email' => $email,
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
+}
+
+/**
  * JSON response helper
  */
 function jsonResponse($data, $statusCode = 200) {
