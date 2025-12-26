@@ -419,14 +419,25 @@ try {
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
-            $subscriptionId = $subResult['data']['id'] ?? $subResult['id'] ?? uniqid('sub_');
+            $subscriptionId = $subResult['data']['id'] ?? $subResult['id'] ?? $subResult['data']['subscription_id'] ?? uniqid('sub_');
             $cardLast4 = substr($cardNumber, -4);
             $cardBrand = detectCardBrand($cardNumber);
+            
+            // Create or get donor record
+            $donorId = null;
+            if (!empty($donorEmail)) {
+                try {
+                    $donorId = getOrCreateDonor($donorName, $donorEmail);
+                } catch (\Throwable $e) {
+                    error_log("PayArc subscription donor creation error: " . $e->getMessage());
+                }
+            }
             
             // Store donation record
             $donationId = db()->insert('donations', [
                 'amount' => $amount,
                 'frequency' => 'monthly',
+                'donor_id' => $donorId,
                 'donor_name' => $donorName,
                 'donor_email' => $donorEmail,
                 'display_name' => $displayName ?: null,
@@ -435,7 +446,7 @@ try {
                 'payment_method' => 'payarc',
                 'transaction_id' => $subscriptionId,
                 'status' => 'completed',
-                'campaign_id' => $campaignId,
+                'campaign_id' => $campaignId ?: null,
                 'metadata' => json_encode([
                     'card_last4' => $cardLast4,
                     'card_brand' => $cardBrand,

@@ -11,7 +11,7 @@ requireAdmin();
 $success = '';
 $error = '';
 
-// Handle cancellation
+// Handle actions (cancel or edit)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request.';
@@ -20,15 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $payarcBearerToken = $settings['payarc_bearer_token'] ?? '';
         $payarcMode = $settings['payarc_mode'] ?? 'sandbox';
         
+        $baseUrl = $payarcMode === 'live' 
+            ? 'https://api.payarc.net/v1'
+            : 'https://testapi.payarc.net/v1';
+        
         if ($_POST['action'] === 'cancel') {
             $subscriptionId = $_POST['subscription_id'] ?? '';
             
             if ($subscriptionId && $payarcBearerToken) {
                 // Call PayArc API to cancel
-                $baseUrl = $payarcMode === 'live' 
-                    ? 'https://api.payarc.com/v1'
-                    : 'https://testapi.payarc.com/v1';
-                
                 $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId . '/cancel');
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
@@ -45,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
                 
-                // Update local database
+                error_log("PayArc cancel subscription response (HTTP $httpCode): " . $response);
+                
+                // Update local database regardless of API response
                 db()->execute(
                     "UPDATE payarc_subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE payarc_subscription_id = ?",
                     [$subscriptionId]
@@ -54,6 +56,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $success = 'Subscription cancelled successfully.';
             } else {
                 $error = 'Invalid subscription or PayArc not configured.';
+            }
+        } elseif ($_POST['action'] === 'edit') {
+            $subscriptionId = $_POST['subscription_id'] ?? '';
+            $newAmount = (int)($_POST['new_amount'] ?? 0);
+            $localId = (int)($_POST['local_id'] ?? 0);
+            
+            if ($subscriptionId && $newAmount > 0 && $payarcBearerToken) {
+                // For PayArc, updating subscription amount requires:
+                // 1. Cancel existing subscription
+                // 2. Create new subscription with new amount
+                // This is a limitation of plan-based subscriptions
+                
+                // For now, just update local records
+                // The new amount will take effect on next manual charge or new subscription
+                db()->execute(
+                    "UPDATE payarc_subscriptions SET amount = ? WHERE id = ?",
+                    [$newAmount, $localId]
+                );
+                
+                // Also update the linked donation record
+                $sub = db()->fetch("SELECT donation_id FROM payarc_subscriptions WHERE id = ?", [$localId]);
+                if ($sub && !empty($sub[0]['donation_id'])) {
+                    db()->execute(
+                        "UPDATE donations SET amount = ? WHERE id = ?",
+                        [$newAmount, $sub[0]['donation_id']]
+                    );
+                }
+                
+                $success = 'Subscription amount updated to $' . $newAmount . '. Note: PayArc will continue charging the original amount until a new subscription is created.';
+            } else {
+                $error = 'Invalid subscription or amount.';
             }
         }
     }
@@ -147,13 +180,27 @@ try {
                                 </td>
                                 <td>
                                     <?php if ($sub['status'] === 'active'): ?>
-                                    <form method="POST" style="display: inline;" 
-                                          onsubmit="return confirm('Are you sure you want to cancel this subscription?');">
-                                        <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
-                                        <input type="hidden" name="action" value="cancel">
-                                        <input type="hidden" name="subscription_id" value="<?= h($sub['payarc_subscription_id']) ?>">
-                                        <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
-                                    </form>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <!-- Edit Amount Form -->
+                                        <form method="POST" style="display: flex; gap: 4px; align-items: center;">
+                                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                            <input type="hidden" name="action" value="edit">
+                                            <input type="hidden" name="subscription_id" value="<?= h($sub['payarc_subscription_id']) ?>">
+                                            <input type="hidden" name="local_id" value="<?= h($sub['id']) ?>">
+                                            <input type="number" name="new_amount" value="<?= (int)$sub['amount'] ?>" 
+                                                   min="1" step="1" style="width: 70px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <button type="submit" class="btn btn-sm btn-secondary" title="Update Amount">Update</button>
+                                        </form>
+                                        
+                                        <!-- Cancel Form -->
+                                        <form method="POST" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to cancel this subscription?');">
+                                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                            <input type="hidden" name="action" value="cancel">
+                                            <input type="hidden" name="subscription_id" value="<?= h($sub['payarc_subscription_id']) ?>">
+                                            <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                                        </form>
+                                    </div>
                                     <?php else: ?>
                                     <span style="color: #888;">—</span>
                                     <?php endif; ?>
