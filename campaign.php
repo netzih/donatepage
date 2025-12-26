@@ -13,6 +13,9 @@ $stripePk = $settings['stripe_pk'] ?? '';
 $paypalClientId = $settings['paypal_client_id'] ?? '';
 $paypalMode = $settings['paypal_mode'] ?? 'sandbox';
 
+// PayArc settings
+$payarcEnabled = ($settings['payarc_enabled'] ?? '0') === '1' && !empty($settings['payarc_bearer_token']);
+
 $orgName = $settings['org_name'] ?? 'Organization';
 $currencySymbol = $settings['currency_symbol'] ?? '$';
 $logoPath = $settings['logo_path'] ?? '';
@@ -323,7 +326,29 @@ if ($campaign) {
                         <textarea id="donation-message" placeholder="Leave a message or dedication..." rows="2" maxlength="500"></textarea>
                     </div>
                     
-                    <?php if ($stripePk): ?>
+                    <?php if ($payarcEnabled): ?>
+                    <!-- PayArc native card inputs -->
+                    <div id="payarc-card-form" class="payarc-form">
+                        <div class="form-group">
+                            <label for="card-number">Card Number</label>
+                            <input type="text" id="card-number" placeholder="1234 5678 9012 3456" 
+                                   maxlength="19" autocomplete="cc-number" inputmode="numeric">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="card-expiry">Expiry</label>
+                                <input type="text" id="card-expiry" placeholder="MM/YY" 
+                                       maxlength="5" autocomplete="cc-exp" inputmode="numeric">
+                            </div>
+                            <div class="form-group half">
+                                <label for="card-cvv">CVV</label>
+                                <input type="text" id="card-cvv" placeholder="123" 
+                                       maxlength="4" autocomplete="cc-csc" inputmode="numeric">
+                            </div>
+                        </div>
+                    </div>
+                    <?php elseif ($stripePk): ?>
+                    <!-- Stripe Payment Element fallback -->
                     <div class="form-group">
                         <label>Card Details</label>
                         <div id="payment-element"></div>
@@ -387,6 +412,7 @@ if ($campaign) {
         const CONFIG = {
             stripeKey: '<?= h($stripePk) ?>',
             paypalClientId: '<?= h($paypalClientId) ?>',
+            payarcEnabled: <?= $payarcEnabled ? 'true' : 'false' ?>,
             csrfToken: '<?= h($csrfToken) ?>',
             currencySymbol: '<?= h($currencySymbol) ?>',
             campaignId: <?= $campaign ? $campaign['id'] : 'null' ?>,

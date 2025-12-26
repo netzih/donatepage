@@ -1,6 +1,6 @@
 /**
  * Donation Page JavaScript
- * Handles amount selection, Stripe Payment Elements, and PayPal integration
+ * Handles amount selection, PayArc Direct API, Stripe Payment Elements, and PayPal integration
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,9 +27,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const donorName = document.getElementById('donor-name');
     const donorEmail = document.getElementById('donor-email');
 
-    // Initialize Stripe
-    if (CONFIG.stripeKey) {
+    // PayArc card inputs
+    const cardNumberInput = document.getElementById('card-number');
+    const cardExpiryInput = document.getElementById('card-expiry');
+    const cardCvvInput = document.getElementById('card-cvv');
+
+    // Initialize Stripe only if PayArc is not enabled
+    if (CONFIG.stripeKey && !CONFIG.payarcEnabled) {
         stripe = Stripe(CONFIG.stripeKey);
+    }
+
+    // Card number formatting
+    if (cardNumberInput) {
+        cardNumberInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            value = value.replace(/(.{4})/g, '$1 ').trim();
+            e.target.value = value.substring(0, 19);
+        });
+    }
+
+    // Expiry formatting (MM/YY)
+    if (cardExpiryInput) {
+        cardExpiryInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            e.target.value = value;
+        });
+    }
+
+    // CVV formatting
+    if (cardCvvInput) {
+        cardCvvInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '').substring(0, 4);
+        });
     }
 
     // Amount button click
@@ -77,58 +109,72 @@ document.addEventListener('DOMContentLoaded', () => {
         stripeBtn.textContent = 'Loading...';
 
         try {
-            // Create PaymentIntent or SetupIntent
-            const response = await fetch('api/create-payment-intent.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: selectedAmount,
-                    frequency: frequency,
-                    csrf_token: CONFIG.csrfToken
-                })
-            });
+            if (CONFIG.payarcEnabled) {
+                // PayArc: Just show the payment form (no API call needed yet)
+                amountStep.style.display = 'none';
+                paymentStep.style.display = 'block';
+                document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
 
-            const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            clientSecret = data.clientSecret;
-            donationId = data.donationId;
-            paymentMode = data.mode || 'payment';
-
-            // Initialize Payment Elements
-            const appearance = {
-                theme: 'stripe',
-                variables: {
-                    colorPrimary: '#20a39e',
-                    colorBackground: '#ffffff',
-                    colorText: '#333333',
-                    fontFamily: 'Montserrat, sans-serif',
-                    borderRadius: '8px'
+                // Update button text for monthly
+                if (frequency === 'monthly') {
+                    document.getElementById('button-text').textContent =
+                        `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
+                } else {
+                    document.getElementById('button-text').textContent = 'Complete Donation';
                 }
-            };
-
-            elements = stripe.elements({ clientSecret, appearance });
-            paymentElement = elements.create('payment');
-            paymentElement.mount('#payment-element');
-
-            // Show payment step, hide amount step
-            amountStep.style.display = 'none';
-            paymentStep.style.display = 'block';
-
-            // Update step indicator and button text
-            document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
-
-            // Update button text for monthly
-            if (frequency === 'monthly') {
-                document.getElementById('button-text').textContent =
-                    `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
             } else {
-                document.getElementById('button-text').textContent = 'Complete Donation';
-            }
+                // Stripe: Create PaymentIntent or SetupIntent
+                const response = await fetch('api/create-payment-intent.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: selectedAmount,
+                        frequency: frequency,
+                        csrf_token: CONFIG.csrfToken
+                    })
+                });
 
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                clientSecret = data.clientSecret;
+                donationId = data.donationId;
+                paymentMode = data.mode || 'payment';
+
+                // Initialize Payment Elements
+                const appearance = {
+                    theme: 'stripe',
+                    variables: {
+                        colorPrimary: '#20a39e',
+                        colorBackground: '#ffffff',
+                        colorText: '#333333',
+                        fontFamily: 'Montserrat, sans-serif',
+                        borderRadius: '8px'
+                    }
+                };
+
+                elements = stripe.elements({ clientSecret, appearance });
+                paymentElement = elements.create('payment');
+                paymentElement.mount('#payment-element');
+
+                // Show payment step, hide amount step
+                amountStep.style.display = 'none';
+                paymentStep.style.display = 'block';
+
+                // Update step indicator and button text
+                document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
+
+                // Update button text for monthly
+                if (frequency === 'monthly') {
+                    document.getElementById('button-text').textContent =
+                        `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
+                } else {
+                    document.getElementById('button-text').textContent = 'Complete Donation';
+                }
+            }
         } catch (error) {
             showMessage(error.message, 'error');
         } finally {
@@ -144,11 +190,16 @@ document.addEventListener('DOMContentLoaded', () => {
             amountStep.style.display = 'flex';
             document.querySelector('.card-step').textContent = 'AMOUNT • 1/2';
 
-            // Cleanup
+            // Cleanup Stripe elements if present
             if (paymentElement) {
                 paymentElement.unmount();
                 paymentElement = null;
             }
+
+            // Clear PayArc inputs
+            if (cardNumberInput) cardNumberInput.value = '';
+            if (cardExpiryInput) cardExpiryInput.value = '';
+            if (cardCvvInput) cardCvvInput.value = '';
         });
     }
 
@@ -175,81 +226,142 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(true);
 
             try {
-                let result;
-
-                if (paymentMode === 'subscription') {
-                    // For subscriptions, use confirmSetup
-                    result = await stripe.confirmSetup({
-                        elements,
-                        confirmParams: {
-                            return_url: window.location.origin + '/success.php'
-                        },
-                        redirect: 'if_required'
-                    });
+                if (CONFIG.payarcEnabled) {
+                    // PayArc Direct API payment
+                    await processPayArcPayment();
                 } else {
-                    // For one-time payments, use confirmPayment
-                    result = await stripe.confirmPayment({
-                        elements,
-                        confirmParams: {
-                            return_url: window.location.origin + '/success.php',
-                            receipt_email: donorEmail.value.trim()
-                        },
-                        redirect: 'if_required'
-                    });
+                    // Stripe payment
+                    await processStripePayment();
                 }
-
-                if (result.error) {
-                    if (result.error.type === 'card_error' || result.error.type === 'validation_error') {
-                        showMessage(result.error.message, 'error');
-                    } else {
-                        showMessage('An unexpected error occurred.', 'error');
-                    }
-                    setLoading(false);
-                    return;
-                }
-
-                // Get the intent ID based on mode
-                const intentId = paymentMode === 'subscription'
-                    ? result.setupIntent?.id
-                    : result.paymentIntent?.id;
-
-                const intentStatus = paymentMode === 'subscription'
-                    ? result.setupIntent?.status
-                    : result.paymentIntent?.status;
-
-                if (intentId && intentStatus === 'succeeded') {
-                    // Confirm payment/subscription on server
-                    const confirmResponse = await fetch('api/confirm-payment.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            mode: paymentMode,
-                            intent_id: intentId,
-                            donor_name: donorName.value.trim(),
-                            donor_email: donorEmail.value.trim(),
-                            amount: selectedAmount
-                        })
-                    });
-
-                    const confirmData = await confirmResponse.json();
-
-                    if (confirmData.success) {
-                        window.location.href = 'success.php?id=' + confirmData.donationId;
-                    } else {
-                        showMessage(confirmData.error || 'Payment confirmation failed', 'error');
-                        setLoading(false);
-                    }
-                } else {
-                    showMessage('Payment was not completed. Please try again.', 'error');
-                    setLoading(false);
-                }
-
             } catch (err) {
                 console.error('Payment error:', err);
-                showMessage('Payment failed. Please try again.', 'error');
+                showMessage(err.message || 'Payment failed. Please try again.', 'error');
                 setLoading(false);
             }
         });
+    }
+
+    // PayArc payment processing
+    async function processPayArcPayment() {
+        // Validate card inputs
+        const cardNumber = cardNumberInput ? cardNumberInput.value.replace(/\s/g, '') : '';
+        const expiry = cardExpiryInput ? cardExpiryInput.value : '';
+        const cvv = cardCvvInput ? cardCvvInput.value : '';
+
+        if (!cardNumber || cardNumber.length < 13) {
+            throw new Error('Please enter a valid card number');
+        }
+
+        const [expMonth, expYear] = expiry.split('/');
+        if (!expMonth || !expYear) {
+            throw new Error('Please enter a valid expiry date (MM/YY)');
+        }
+
+        if (!cvv || cvv.length < 3) {
+            throw new Error('Please enter a valid CVV');
+        }
+
+        const action = frequency === 'monthly' ? 'subscribe' : 'charge';
+
+        const response = await fetch('api/process-payarc.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: action,
+                amount: selectedAmount,
+                card_number: cardNumber,
+                exp_month: parseInt(expMonth),
+                exp_year: parseInt(expYear),
+                cvv: cvv,
+                donor_name: donorName.value.trim(),
+                donor_email: donorEmail.value.trim(),
+                csrf_token: CONFIG.csrfToken
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        if (result.success) {
+            window.location.href = 'success.php?id=' + result.donationId;
+        } else {
+            throw new Error('Payment was not completed. Please try again.');
+        }
+    }
+
+    // Stripe payment processing
+    async function processStripePayment() {
+        let result;
+
+        if (paymentMode === 'subscription') {
+            // For subscriptions, use confirmSetup
+            result = await stripe.confirmSetup({
+                elements,
+                confirmParams: {
+                    return_url: window.location.origin + '/success.php'
+                },
+                redirect: 'if_required'
+            });
+        } else {
+            // For one-time payments, use confirmPayment
+            result = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: window.location.origin + '/success.php',
+                    receipt_email: donorEmail.value.trim()
+                },
+                redirect: 'if_required'
+            });
+        }
+
+        if (result.error) {
+            if (result.error.type === 'card_error' || result.error.type === 'validation_error') {
+                showMessage(result.error.message, 'error');
+            } else {
+                showMessage('An unexpected error occurred.', 'error');
+            }
+            setLoading(false);
+            return;
+        }
+
+        // Get the intent ID based on mode
+        const intentId = paymentMode === 'subscription'
+            ? result.setupIntent?.id
+            : result.paymentIntent?.id;
+
+        const intentStatus = paymentMode === 'subscription'
+            ? result.setupIntent?.status
+            : result.paymentIntent?.status;
+
+        if (intentId && intentStatus === 'succeeded') {
+            // Confirm payment/subscription on server
+            const confirmResponse = await fetch('api/confirm-payment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mode: paymentMode,
+                    intent_id: intentId,
+                    donor_name: donorName.value.trim(),
+                    donor_email: donorEmail.value.trim(),
+                    amount: selectedAmount
+                })
+            });
+
+            const confirmData = await confirmResponse.json();
+
+            if (confirmData.success) {
+                window.location.href = 'success.php?id=' + confirmData.donationId;
+            } else {
+                showMessage(confirmData.error || 'Payment confirmation failed', 'error');
+                setLoading(false);
+            }
+        } else {
+            showMessage('Payment was not completed. Please try again.', 'error');
+            setLoading(false);
+        }
     }
 
     // Helper functions

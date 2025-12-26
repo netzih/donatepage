@@ -24,6 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setSetting('paypal_secret', trim($_POST['paypal_secret'] ?? ''));
         setSetting('paypal_mode', $_POST['paypal_mode'] ?? 'sandbox');
         
+        // PayArc settings
+        setSetting('payarc_enabled', isset($_POST['payarc_enabled']) ? '1' : '0');
+        setSetting('payarc_api_key', trim($_POST['payarc_api_key'] ?? ''));
+        setSetting('payarc_bearer_token', trim($_POST['payarc_bearer_token'] ?? ''));
+        setSetting('payarc_mode', $_POST['payarc_mode'] ?? 'sandbox');
+        
         $success = 'Payment settings saved successfully!';
     }
 }
@@ -113,6 +119,45 @@ $csrfToken = generateCsrfToken();
                         <select id="paypal_mode" name="paypal_mode">
                             <option value="sandbox" <?= ($settings['paypal_mode'] ?? '') === 'sandbox' ? 'selected' : '' ?>>Sandbox (Testing)</option>
                             <option value="live" <?= ($settings['paypal_mode'] ?? '') === 'live' ? 'selected' : '' ?>>Live (Production)</option>
+                        </select>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>PayArc</h2>
+                    <p style="margin-bottom: 20px; color: #666;">
+                        Get your credentials from your <a href="https://dashboard.payarc.com" target="_blank">PayArc Dashboard</a>.
+                        When enabled, PayArc handles credit card payments (Stripe handles Apple Pay/Google Pay).
+                    </p>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="payarc_enabled" value="1" 
+                                   <?= ($settings['payarc_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            Enable PayArc for Credit Card payments
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payarc_api_key">API Key</label>
+                        <input type="text" id="payarc_api_key" name="payarc_api_key" 
+                               value="<?= h($settings['payarc_api_key'] ?? '') ?>"
+                               placeholder="Your PayArc API Key">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payarc_bearer_token">Bearer Token</label>
+                        <input type="password" id="payarc_bearer_token" name="payarc_bearer_token" 
+                               value="<?= h($settings['payarc_bearer_token'] ?? '') ?>"
+                               placeholder="Your PayArc Bearer Token">
+                        <small>Used for API authentication</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payarc_mode">Mode</label>
+                        <select id="payarc_mode" name="payarc_mode">
+                            <option value="sandbox" <?= ($settings['payarc_mode'] ?? '') === 'sandbox' ? 'selected' : '' ?>>Sandbox (Testing)</option>
+                            <option value="live" <?= ($settings['payarc_mode'] ?? '') === 'live' ? 'selected' : '' ?>>Live (Production)</option>
                         </select>
                     </div>
                 </section>

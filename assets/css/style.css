@@ -1297,3 +1297,57 @@ body.campaign-page {
     font-size: 12px;
     color: #888;
 }
+
+/* PayArc Card Form */
+.payarc-form {
+    margin-bottom: 20px;
+}
+
+.payarc-form .form-group {
+    margin-bottom: 16px;
+}
+
+.payarc-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.payarc-form input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 16px;
+    outline: none;
+    transition: all 0.3s;
+    background: white;
+}
+
+.payarc-form input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(32, 163, 158, 0.1);
+}
+
+.payarc-form input::placeholder {
+    color: #aaa;
+}
+
+/* Form Row - Split Layout */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+/* Card input icon styling */
+.payarc-form #card-number {
+    padding-left: 16px;
+    letter-spacing: 2px;
+}

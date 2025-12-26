@@ -18,6 +18,7 @@ $orgName = $settings['org_name'] ?? 'Donation Platform';
     <nav class="sidebar-nav">
         <a href="/admin"<?= ($currentPage ?? '') === 'dashboard' ? ' class="active"' : '' ?>>📊 Dashboard</a>
         <a href="/admin/donations"<?= ($currentPage ?? '') === 'donations' ? ' class="active"' : '' ?>>💳 Donations</a>
+        <a href="/admin/subscriptions"<?= ($currentPage ?? '') === 'subscriptions' ? ' class="active"' : '' ?>>🔄 Subscriptions</a>
         <a href="/admin/campaigns"<?= ($currentPage ?? '') === 'campaigns' ? ' class="active"' : '' ?>>📣 Campaigns</a>
         <a href="/admin/settings"<?= ($currentPage ?? '') === 'settings' ? ' class="active"' : '' ?>>⚙️ Settings</a>
         <a href="/admin/payments"<?= ($currentPage ?? '') === 'payments' ? ' class="active"' : '' ?>>💰 Payment Gateways</a>

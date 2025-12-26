@@ -124,17 +124,17 @@ function setSecurityHeaders() {
     header('Referrer-Policy: strict-origin-when-cross-origin');
     
     // Permissions policy (allow payments)
-    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(self "https://js.stripe.com" "https://www.paypal.com")');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(self "https://js.stripe.com" "https://www.paypal.com" "https://js.payarc.com")');
     
     // Content Security Policy (adjust as needed)
-    // Note: Stripe requires certain sources
+    // Note: Stripe and PayArc require certain sources
     $csp = "default-src 'self'; ";
-    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com https://cdnjs.cloudflare.com https://unpkg.com; ";
+    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com https://cdnjs.cloudflare.com https://unpkg.com https://js.payarc.com; ";
     $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; ";
     $csp .= "font-src 'self' https://fonts.gstatic.com; ";
     $csp .= "img-src 'self' data: https:; ";
-    $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com; ";
-    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com; ";
+    $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com https://js.payarc.com; ";
+    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com https://api.payarc.com; ";
     
     // Allow iframing from any site if embed parameter is present
     if ($isEmbed) {
