@@ -508,7 +508,7 @@ $queryString = http_build_query($queryParams);
                                 <td><?= date('M j, Y g:ia', strtotime($d['created_at'])) ?></td>
                                 <td>
                                     <?php if ($d['donor_id']): ?>
-                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="donor-link">
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_name'] ?: 'Anonymous') ?>
                                         </a>
                                     <?php else: ?>
@@ -517,7 +517,7 @@ $queryString = http_build_query($queryParams);
                                 </td>
                                 <td>
                                     <?php if ($d['donor_id']): ?>
-                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="donor-link">
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_email']) ?>
                                         </a>
                                     <?php else: ?>
@@ -562,7 +562,7 @@ $queryString = http_build_query($queryParams);
                                 <td>
                                     <div class="action-btns">
                                         <?php if ($d['donor_id']): ?>
-                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="btn btn-xs btn-info">
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="btn btn-xs btn-info">
                                             View
                                         </a>
                                         <?php endif; ?>

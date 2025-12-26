@@ -196,7 +196,7 @@ $donations = db()->fetchAll(
                                 <td><?= date('M j, Y g:ia', strtotime($d['created_at'])) ?></td>
                                 <td>
                                     <?php if ($d['donor_id']): ?>
-                                        <a href="donor.php?id=<?= $d['donor_id'] ?>" class="donor-link">
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_name'] ?: 'Anonymous') ?>
                                         </a>
                                     <?php else: ?>
@@ -274,13 +274,13 @@ $donations = db()->fetchAll(
                     <textarea name="donation_message" rows="3"></textarea>
                 </div>
                 
-                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" name="is_anonymous">
                         Anonymous
                     </label>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" name="is_matched" checked>
                         <span style="color: #20a39e; font-weight: bold;">🔥 Apply Matching</span>
                     </label>
@@ -331,13 +331,13 @@ $donations = db()->fetchAll(
                     <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
                 </div>
                 
-                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
                         Anonymous
                     </label>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" id="edit_is_matched" name="is_matched">
                         <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
                     </label>

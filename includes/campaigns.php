@@ -101,25 +101,25 @@ function enrichCampaign($campaign) {
                 SUM(CASE 
                     WHEN is_matched = 1 THEN amount * ? 
                     ELSE amount 
-                END) as raised_amount,
-                COUNT(*) as donor_count
+                END) as matched_raised,
+                SUM(amount) as base_raised,
+                COUNT(DISTINCT donor_id) as unique_donors,
+                COUNT(DISTINCT CASE WHEN donor_id IS NULL THEN donor_email END) as email_only_donors
             FROM donations 
             WHERE campaign_id = ? AND status = 'completed'",
             [$campaign['matching_multiplier'], $id]
         );
-        $campaign['raised_amount'] = (float)($stats['raised_amount'] ?? 0);
-        $campaign['donor_count'] = (int)($stats['donor_count'] ?? 0);
+        $campaign['raised_amount'] = (float)($stats['matched_raised'] ?? 0);
+        $campaign['base_amount'] = (float)($stats['base_raised'] ?? 0);
+        $campaign['donor_count'] = (int)($stats['unique_donors'] ?? 0) + (int)($stats['email_only_donors'] ?? 0);
     } catch (Exception $e) {
         $campaign['raised_amount'] = 0;
+        $campaign['base_amount'] = 0;
         $campaign['donor_count'] = 0;
     }
     
-    // Calculate matched total
-    if ($campaign['matching_enabled']) {
-        $campaign['matched_total'] = $campaign['raised_amount'] * $campaign['matching_multiplier'];
-    } else {
-        $campaign['matched_total'] = $campaign['raised_amount'];
-    }
+    // Matched total is already calculated in SQL as matched_raised
+    $campaign['matched_total'] = $campaign['raised_amount'];
     
     // Get matchers
     try {

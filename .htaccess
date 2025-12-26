@@ -41,6 +41,9 @@ RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.*)$ $1.php [L]
 
 # Handle /admin/ routes
+RewriteCond %{REQUEST_URI} ^/admin/donor/([0-9]+)/?$ [NC]
+RewriteRule ^admin/donor/([0-9]+)/?$ admin/donor.php?id=$1 [L,QSA]
+
 RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
 RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
 RewriteRule ^admin/(.*)$ admin/$1.php [L]

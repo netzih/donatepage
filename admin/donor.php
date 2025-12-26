@@ -391,13 +391,13 @@ $csrfToken = generateCsrfToken();
                     <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
                 </div>
                 
-                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
-                        Make donation anonymous
+                        Anonymous
                     </label>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
                         <input type="checkbox" id="edit_is_matched" name="is_matched">
                         <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
                     </label>
