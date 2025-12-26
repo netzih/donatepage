@@ -289,7 +289,7 @@ try {
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
-            $customerId = $customerResult['data']['id'] ?? $customerResult['id'] ?? null;
+            $customerId = $customerResult['data']['customer_id'] ?? $customerResult['data']['id'] ?? $customerResult['customer_id'] ?? null;
             
             if (!$customerId) {
                 error_log("PayArc customer ID not found in response: " . json_encode($customerResult));
