@@ -106,6 +106,36 @@ function payarcGetRequest($endpoint, $bearerToken, $mode = 'sandbox') {
     return $decoded;
 }
 
+/**
+ * PayArc PATCH Request Helper
+ */
+function payarcPatchRequest($endpoint, $data, $bearerToken, $mode = 'sandbox') {
+    $baseUrl = $mode === 'live' 
+        ? 'https://api.payarc.net/v1'
+        : 'https://testapi.payarc.net/v1';
+    
+    $ch = curl_init($baseUrl . $endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => 'PATCH',
+        CURLOPT_POSTFIELDS => json_encode($data),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $bearerToken,
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    $decoded = json_decode($response, true);
+    $decoded['http_code'] = $httpCode;
+    
+    return $decoded;
+}
+
 try {
     switch ($action) {
         case 'charge':
@@ -296,6 +326,48 @@ try {
                 jsonResponse(['error' => 'Failed to create customer account'], 400);
             }
             
+            // Step 1.5: Create a card token and attach to customer
+            $tokenData = [
+                'card_number' => $cardNumber,
+                'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
+                'exp_year' => (string)$fullYear,
+                'cvv' => $cvv,
+                'card_source' => 'INTERNET'
+            ];
+            
+            error_log("PayArc token creation request: " . json_encode($tokenData));
+            $tokenResult = payarcRequest('/tokens', $tokenData, $payarcBearerToken, $payarcMode);
+            error_log("PayArc token creation response: " . json_encode($tokenResult));
+            
+            if (isset($tokenResult['error']) || ($tokenResult['http_code'] ?? 0) >= 400) {
+                $errorMsg = $tokenResult['message'] ?? $tokenResult['error'] ?? 'Failed to tokenize card';
+                error_log("PayArc token error: " . json_encode($tokenResult));
+                jsonResponse(['error' => $errorMsg], 400);
+            }
+            
+            $tokenId = $tokenResult['data']['id'] ?? $tokenResult['id'] ?? $tokenResult['data']['token_id'] ?? null;
+            
+            if (!$tokenId) {
+                error_log("PayArc token ID not found in response: " . json_encode($tokenResult));
+                jsonResponse(['error' => 'Failed to tokenize card'], 400);
+            }
+            
+            // Attach card token to customer
+            $attachData = [
+                'token_id' => $tokenId
+            ];
+            
+            error_log("PayArc attach card request: " . json_encode($attachData));
+            $attachResult = payarcRequest('/customers/' . $customerId . '/cards', $attachData, $payarcBearerToken, $payarcMode);
+            error_log("PayArc attach card response: " . json_encode($attachResult));
+            
+            if (isset($attachResult['error']) || ($attachResult['http_code'] ?? 0) >= 400) {
+                // Try alternate method - PATCH customer with token
+                error_log("Trying alternate attach method - PATCH customer");
+                $attachResult = payarcPatchRequest('/customers/' . $customerId, ['token_id' => $tokenId], $payarcBearerToken, $payarcMode);
+                error_log("PayArc PATCH attach response: " . json_encode($attachResult));
+            }
+            
             // Step 1: Create or get a plan for this amount
             // Plan ID format: monthly_donation_[amount in cents]
             $planId = 'monthly_donation_' . ($amount * 100);
@@ -330,17 +402,11 @@ try {
                 }
             }
             
-            // Step 2: Create subscription with the plan
+            // Step 3: Create subscription with the plan (card is now attached to customer)
             $subscriptionData = [
                 'customer_id' => $customerId,
                 'plan_id' => $planId,
-                'statement_description' => 'Monthly Donation',
-                // Include card details for the subscription charge
-                'card_number' => $cardNumber,
-                'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
-                'exp_year' => (string)$fullYear,
-                'cvv' => $cvv,
-                'card_source' => 'INTERNET'
+                'statement_description' => 'Monthly Donation'
             ];
             
             error_log("PayArc subscription request: " . json_encode($subscriptionData));
