@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardExpiryInput = document.getElementById('card-expiry');
     const cardCvvInput = document.getElementById('card-cvv');
 
-    // Initialize Stripe only if PayArc is not enabled
-    if (CONFIG.stripeKey && !CONFIG.payarcEnabled) {
+    // Always initialize Stripe if key exists (needed for Apple Pay/Google Pay even when PayArc handles cards)
+    if (CONFIG.stripeKey) {
         stripe = Stripe(CONFIG.stripeKey);
     }
 
@@ -121,6 +121,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
                 } else {
                     document.getElementById('button-text').textContent = 'Complete Donation';
+                }
+
+                // Initialize Express Checkout for Apple Pay/Google Pay if Stripe is available
+                const expressCheckoutContainer = document.getElementById('express-checkout-element');
+                if (stripe && expressCheckoutContainer) {
+                    try {
+                        // Create a PaymentIntent first to get the client secret
+                        const intentResponse = await fetch('api/create-payment-intent.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                amount: selectedAmount,
+                                frequency: frequency,
+                                csrf_token: CONFIG.csrfToken
+                            })
+                        });
+                        const intentData = await intentResponse.json();
+
+                        if (intentData.clientSecret) {
+                            // Mount Express Checkout Element
+                            const expressElements = stripe.elements({
+                                clientSecret: intentData.clientSecret,
+                                appearance: { theme: 'stripe' }
+                            });
+                            const expressCheckoutElement = expressElements.create('expressCheckout');
+                            expressCheckoutElement.mount('#express-checkout-element');
+
+                            // Handle express checkout confirmation
+                            expressCheckoutElement.on('confirm', async (event) => {
+                                const { error } = await stripe.confirmPayment({
+                                    elements: expressElements,
+                                    clientSecret: intentData.clientSecret,
+                                    confirmParams: {
+                                        return_url: window.location.origin + '/success.php?id=' + intentData.donationId
+                                    }
+                                });
+                                if (error) {
+                                    showMessage(error.message, 'error');
+                                }
+                            });
+                        }
+                    } catch (expressError) {
+                        console.log('Express checkout not available:', expressError.message);
+                        // Hide the container if express checkout fails
+                        expressCheckoutContainer.style.display = 'none';
+                    }
                 }
             } else {
                 // Stripe: Create PaymentIntent or SetupIntent

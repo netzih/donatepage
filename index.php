@@ -147,6 +147,12 @@ if ($embedMode > 0) {
                                 </div>
                             </div>
                         </div>
+                        
+                        <?php if ($stripePk): ?>
+                        <!-- Express checkout for Apple Pay / Google Pay via Stripe -->
+                        <div id="express-checkout-element" class="express-checkout" style="margin: 16px 0;"></div>
+                        <?php endif; ?>
+                        
                         <?php elseif ($stripePk): ?>
                         <!-- Stripe Payment Element fallback -->
                         <div class="form-group">
