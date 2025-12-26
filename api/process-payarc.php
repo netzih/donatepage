@@ -128,23 +128,26 @@ try {
             if ($expMonth < 1 || $expMonth > 12) {
                 jsonResponse(['error' => 'Invalid expiration month'], 400);
             }
-            if ($expYear < (int)date('y')) {
+            if ($expYear < 24) {
                 jsonResponse(['error' => 'Card has expired'], 400);
             }
             if (strlen($cvv) < 3 || strlen($cvv) > 4) {
                 jsonResponse(['error' => 'Invalid CVV'], 400);
             }
             
+            // Convert 2-digit year to 4-digit
+            $fullYear = $expYear < 100 ? 2000 + $expYear : $expYear;
+            
             // Create charge via PayArc API
+            // PayArc expects card details at top level, not nested in 'source'
             $chargeData = [
-                'amount' => $amount * 100, // Convert to cents
+                'amount' => (string)($amount * 100), // Convert to cents as string
                 'currency' => 'usd',
-                'source' => [
-                    'card_number' => $cardNumber,
-                    'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
-                    'exp_year' => str_pad($expYear, 2, '0', STR_PAD_LEFT),
-                    'cvv' => $cvv
-                ],
+                'card_number' => $cardNumber,
+                'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
+                'exp_year' => (string)$fullYear,
+                'cvv' => $cvv,
+                'card_source' => 'INTERNET',
                 'statement_description' => 'Donation',
                 'capture' => true
             ];
