@@ -172,7 +172,9 @@ try {
             $cardLast4 = substr($cardNumber, -4);
             $cardBrand = detectCardBrand($cardNumber);
             
-            // Store donation in database
+            // Payment succeeded - try to store in database, but don't fail if DB has issues
+            $donationId = 0;
+            
             try {
                 $donationId = db()->insert('donations', [
                     'amount' => $amount,
@@ -185,52 +187,50 @@ try {
                     'payment_method' => 'payarc',
                     'transaction_id' => $transactionId,
                     'status' => 'completed',
-                    'campaign_id' => $campaignId,
+                    'campaign_id' => $campaignId ?: null,
                     'metadata' => json_encode([
                         'card_last4' => $cardLast4,
-                        'card_brand' => $cardBrand,
-                        'payarc_response' => $result['data'] ?? $result
+                        'card_brand' => $cardBrand
                     ]),
                     'created_at' => date('Y-m-d H:i:s')
                 ]);
-            } catch (Exception $dbError) {
-                error_log("PayArc DB insert error: " . $dbError->getMessage());
-                // Payment succeeded but DB failed - still return success with transaction ID
-                jsonResponse([
-                    'success' => true,
-                    'donationId' => 0,
-                    'transactionId' => $transactionId,
-                    'message' => 'Payment successful (record pending)'
-                ]);
-            }
-            
-            // Mark as matched if campaign has matching enabled
-            if ($campaignId) {
-                try {
-                    require_once __DIR__ . '/../includes/campaigns.php';
-                    $campaign = getCampaignById($campaignId);
-                    if ($campaign && $campaign['matching_enabled']) {
-                        db()->execute(
-                            "UPDATE donations SET is_matched = 1 WHERE id = ?",
-                            [$donationId]
-                        );
+                
+                // Optional: Mark as matched if campaign has matching enabled
+                if ($campaignId && $donationId) {
+                    try {
+                        require_once __DIR__ . '/../includes/campaigns.php';
+                        $campaign = getCampaignById($campaignId);
+                        if ($campaign && !empty($campaign['matching_enabled'])) {
+                            db()->execute(
+                                "UPDATE donations SET is_matched = 1 WHERE id = ?",
+                                [$donationId]
+                            );
+                        }
+                    } catch (\Throwable $e) {
+                        error_log("Campaign matching error: " . $e->getMessage());
                     }
-                } catch (Exception $e) {
-                    error_log("Campaign matching error: " . $e->getMessage());
                 }
+                
+                // Optional: Send notification emails
+                if ($donationId) {
+                    try {
+                        require_once __DIR__ . '/../includes/mail.php';
+                        sendDonationEmails($donationId);
+                    } catch (\Throwable $e) {
+                        error_log("Email error: " . $e->getMessage());
+                    }
+                }
+                
+            } catch (\Throwable $dbError) {
+                error_log("PayArc DB insert error: " . $dbError->getMessage());
+                // Payment succeeded but DB failed - donationId stays 0
             }
             
-            // Send notification emails
-            try {
-                require_once __DIR__ . '/../includes/mail.php';
-                sendDonationEmails($donationId);
-            } catch (Exception $e) {
-                error_log("Email error: " . $e->getMessage());
-            }
-            
+            // Always return success since payment went through
             jsonResponse([
                 'success' => true,
                 'donationId' => $donationId,
+                'transactionId' => $transactionId,
                 'message' => 'Payment successful'
             ]);
             break;
