@@ -153,7 +153,7 @@ $donations = db()->fetchAll(
             <!-- Stats Overview -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <span class="value"><?= formatCurrency($campaign['raised_amount']) ?></span>
+                    <span class="value"><?= formatCurrency($campaign['base_amount']) ?></span>
                     <span class="label">Raised (Base)</span>
                 </div>
                 <?php if ($campaign['matching_enabled']): ?>
