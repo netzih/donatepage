@@ -136,11 +136,16 @@ function sendAdminNotification($donation) {
 function sendDonationEmails($donationId) {
     try {
         // Get donation details
-        $donation = db()->fetchOne("SELECT * FROM donations WHERE id = ?", [$donationId]);
+        $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donationId]);
         
         if (!$donation) {
             error_log("sendDonationEmails: Donation not found for ID $donationId");
             return false;
+        }
+        
+        // fetch returns an array of rows, get the first one
+        if (is_array($donation) && isset($donation[0])) {
+            $donation = $donation[0];
         }
         
         // Send donor receipt
