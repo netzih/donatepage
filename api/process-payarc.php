@@ -314,7 +314,9 @@ try {
                     'amount' => (string)($amount * 100),
                     'interval' => 'month',
                     'interval_count' => 1,
-                    'currency' => 'usd'
+                    'currency' => 'usd',
+                    'statement_descriptor' => 'Donation',
+                    'plan_type' => 'digital'
                 ];
                 
                 error_log("PayArc plan creation request: " . json_encode($planData));
