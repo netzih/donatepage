@@ -274,13 +274,13 @@ $donations = db()->fetchAll(
                     <textarea name="donation_message" rows="3"></textarea>
                 </div>
                 
-                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
                         <input type="checkbox" name="is_anonymous">
-                        Anonymous
+                        Make donation anonymous
                     </label>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
                         <input type="checkbox" name="is_matched" checked>
                         <span style="color: #20a39e; font-weight: bold;">🔥 Apply Matching</span>
                     </label>
@@ -331,13 +331,13 @@ $donations = db()->fetchAll(
                     <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
                 </div>
                 
-                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
                         <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
-                        Anonymous
+                        Make donation anonymous
                     </label>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; white-space: nowrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
                         <input type="checkbox" id="edit_is_matched" name="is_matched">
                         <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
                     </label>

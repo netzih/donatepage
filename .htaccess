@@ -19,11 +19,21 @@ RewriteRule ^$ index.php [L]
 # CLEAN URLs - Remove .php extension
 # =========================================
 
-# If the request is for an existing directory, do nothing
-RewriteCond %{REQUEST_FILENAME} -d
+# Prevent loops
+RewriteCond %{ENV:REDIRECT_STATUS} 200
 RewriteRule ^ - [L]
 
-# If the request is for an existing file, do nothing
+# 1. Specific Admin rules (Must come BEFORE generic ones)
+RewriteCond %{REQUEST_URI} ^/admin/donor/([0-9]+)/?$ [NC]
+RewriteRule ^admin/donor/([0-9]+)/?$ admin/donor.php?id=$1 [L,QSA]
+
+# 2. Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
+RewriteCond %{REQUEST_URI} !campaign\.php
+RewriteRule ^campaign/([a-zA-Z0-9_-]+)/?$ campaign.php?slug=$1 [L,QSA]
+
+# 3. Generic Clean URLs (Remove .php extension)
+# If the request is for an existing directory or file, do nothing
+RewriteCond %{REQUEST_FILENAME} -d [OR]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -31,18 +41,14 @@ RewriteRule ^ - [L]
 RewriteCond %{THE_REQUEST} \s/([^.]+)\.php[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L]
 
-# Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
-# Must be BEFORE the generic .php rewrite
-RewriteCond %{REQUEST_URI} !campaign\.php
-RewriteRule ^campaign/([a-zA-Z0-9_-]+)/?$ campaign.php?slug=$1 [L,QSA]
-
 # Internally rewrite /page to /page.php
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.*)$ $1.php [L]
 
-# Handle /admin/ routes
-RewriteCond %{REQUEST_URI} ^/admin/donor/([0-9]+)/?$ [NC]
-RewriteRule ^admin/donor/([0-9]+)/?$ admin/donor.php?id=$1 [L,QSA]
+# Generic admin route handler
+RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
+RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
+RewriteRule ^admin/(.*)$ admin/$1.php [L]
 
 RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
 RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
