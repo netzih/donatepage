@@ -265,28 +265,34 @@ try {
                 jsonResponse(['error' => 'Invalid amount'], 400);
             }
             
-            // First create a customer
+            // Convert 2-digit year to 4-digit
+            $fullYear = $expYear < 100 ? 2000 + $expYear : $expYear;
+            
+            // First create a customer with card details at top level
             $customerData = [
                 'email' => $donorEmail,
                 'name' => $donorName,
-                'card' => [
-                    'card_number' => $cardNumber,
-                    'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
-                    'exp_year' => str_pad($expYear, 2, '0', STR_PAD_LEFT),
-                    'cvv' => $cvv
-                ]
+                'card_number' => $cardNumber,
+                'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
+                'exp_year' => (string)$fullYear,
+                'cvv' => $cvv,
+                'card_source' => 'INTERNET'
             ];
             
+            error_log("PayArc customer creation request: " . json_encode($customerData));
             $customerResult = payarcRequest('/customers', $customerData, $payarcBearerToken, $payarcMode);
+            error_log("PayArc customer creation response: " . json_encode($customerResult));
             
             if (isset($customerResult['error']) || ($customerResult['http_code'] ?? 0) >= 400) {
                 $errorMsg = $customerResult['message'] ?? $customerResult['error'] ?? 'Failed to create customer';
+                error_log("PayArc customer error: " . json_encode($customerResult));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
             $customerId = $customerResult['data']['id'] ?? $customerResult['id'] ?? null;
             
             if (!$customerId) {
+                error_log("PayArc customer ID not found in response: " . json_encode($customerResult));
                 jsonResponse(['error' => 'Failed to create customer account'], 400);
             }
             
