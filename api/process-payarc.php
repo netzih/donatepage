@@ -44,8 +44,8 @@ $action = $input['action'] ?? 'charge';
  */
 function payarcRequest($endpoint, $data, $bearerToken, $mode = 'sandbox') {
     $baseUrl = $mode === 'live' 
-        ? 'https://api.payarc.com/v1'
-        : 'https://testapi.payarc.com/v1';
+        ? 'https://api.payarc.net/v1'
+        : 'https://testapi.payarc.net/v1';
     
     $ch = curl_init($baseUrl . $endpoint);
     curl_setopt_array($ch, [
@@ -79,8 +79,8 @@ function payarcRequest($endpoint, $data, $bearerToken, $mode = 'sandbox') {
  */
 function payarcGetRequest($endpoint, $bearerToken, $mode = 'sandbox') {
     $baseUrl = $mode === 'live' 
-        ? 'https://api.payarc.com/v1'
-        : 'https://testapi.payarc.com/v1';
+        ? 'https://api.payarc.net/v1'
+        : 'https://testapi.payarc.net/v1';
     
     $ch = curl_init($baseUrl . $endpoint);
     curl_setopt_array($ch, [
