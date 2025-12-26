@@ -34,7 +34,6 @@ $input = json_decode(file_get_contents('php://input'), true);
 // Verify CSRF token
 $providedToken = $input['csrf_token'] ?? '';
 if (!verifyCsrfToken($providedToken)) {
-    error_log("PayArc CSRF Failure:");
     error_log("- Session ID: " . session_id());
     error_log("- Provided Token: " . substr($providedToken, 0, 20) . "...");
     error_log("- Session Token: " . ($_SESSION['csrf_token'] ?? 'EMPTY'));
@@ -189,11 +188,9 @@ try {
             $result = payarcRequest('/charges', $chargeData, $payarcBearerToken, $payarcMode);
             
             // Log the response for debugging
-            error_log("PayArc charge response: " . json_encode($result));
             
             if (isset($result['error']) || ($result['http_code'] ?? 0) >= 400) {
                 $errorMsg = $result['message'] ?? $result['error'] ?? 'Payment failed';
-                error_log("PayArc error: " . json_encode($result));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
@@ -211,7 +208,6 @@ try {
                 try {
                     $donorId = getOrCreateDonor($donorName, $donorEmail);
                 } catch (\Throwable $e) {
-                    error_log("PayArc donor creation error: " . $e->getMessage());
                 }
             }
             
@@ -263,7 +259,6 @@ try {
                 }
                 
             } catch (\Throwable $dbError) {
-                error_log("PayArc DB insert error: " . $dbError->getMessage());
                 // Payment succeeded but DB failed - donationId stays 0
             }
             
@@ -309,20 +304,16 @@ try {
                 'card_source' => 'INTERNET'
             ];
             
-            error_log("PayArc customer creation request: " . json_encode($customerData));
             $customerResult = payarcRequest('/customers', $customerData, $payarcBearerToken, $payarcMode);
-            error_log("PayArc customer creation response: " . json_encode($customerResult));
             
             if (isset($customerResult['error']) || ($customerResult['http_code'] ?? 0) >= 400) {
                 $errorMsg = $customerResult['message'] ?? $customerResult['error'] ?? 'Failed to create customer';
-                error_log("PayArc customer error: " . json_encode($customerResult));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
             $customerId = $customerResult['data']['customer_id'] ?? $customerResult['data']['id'] ?? $customerResult['customer_id'] ?? null;
             
             if (!$customerId) {
-                error_log("PayArc customer ID not found in response: " . json_encode($customerResult));
                 jsonResponse(['error' => 'Failed to create customer account'], 400);
             }
             
@@ -335,20 +326,16 @@ try {
                 'card_source' => 'INTERNET'
             ];
             
-            error_log("PayArc token creation request: " . json_encode($tokenData));
             $tokenResult = payarcRequest('/tokens', $tokenData, $payarcBearerToken, $payarcMode);
-            error_log("PayArc token creation response: " . json_encode($tokenResult));
             
             if (isset($tokenResult['error']) || ($tokenResult['http_code'] ?? 0) >= 400) {
                 $errorMsg = $tokenResult['message'] ?? $tokenResult['error'] ?? 'Failed to tokenize card';
-                error_log("PayArc token error: " . json_encode($tokenResult));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
             $tokenId = $tokenResult['data']['id'] ?? $tokenResult['id'] ?? $tokenResult['data']['token_id'] ?? null;
             
             if (!$tokenId) {
-                error_log("PayArc token ID not found in response: " . json_encode($tokenResult));
                 jsonResponse(['error' => 'Failed to tokenize card'], 400);
             }
             
@@ -357,15 +344,12 @@ try {
                 'token_id' => $tokenId
             ];
             
-            error_log("PayArc attach card request: " . json_encode($attachData));
             $attachResult = payarcRequest('/customers/' . $customerId . '/cards', $attachData, $payarcBearerToken, $payarcMode);
-            error_log("PayArc attach card response: " . json_encode($attachResult));
             
             if (isset($attachResult['error']) || ($attachResult['http_code'] ?? 0) >= 400) {
                 // Try alternate method - PATCH customer with token
                 error_log("Trying alternate attach method - PATCH customer");
                 $attachResult = payarcPatchRequest('/customers/' . $customerId, ['token_id' => $tokenId], $payarcBearerToken, $payarcMode);
-                error_log("PayArc PATCH attach response: " . json_encode($attachResult));
             }
             
             // Step 1: Create or get a plan for this amount
@@ -378,7 +362,6 @@ try {
             
             // If plan doesn't exist, create it
             if (($planResult['http_code'] ?? 0) === 404 || isset($planResult['error'])) {
-                error_log("PayArc plan not found, creating: " . $planId);
                 
                 $planData = [
                     'plan_id' => $planId,
@@ -391,13 +374,10 @@ try {
                     'plan_type' => 'digital'
                 ];
                 
-                error_log("PayArc plan creation request: " . json_encode($planData));
                 $planResult = payarcRequest('/plans', $planData, $payarcBearerToken, $payarcMode);
-                error_log("PayArc plan creation response: " . json_encode($planResult));
                 
                 if (isset($planResult['error']) || ($planResult['http_code'] ?? 0) >= 400) {
                     $errorMsg = $planResult['message'] ?? $planResult['error'] ?? 'Failed to create plan';
-                    error_log("PayArc plan error: " . json_encode($planResult));
                     jsonResponse(['error' => $errorMsg], 400);
                 }
             }
@@ -409,13 +389,10 @@ try {
                 'statement_description' => 'Monthly Donation'
             ];
             
-            error_log("PayArc subscription request: " . json_encode($subscriptionData));
             $subResult = payarcRequest('/subscriptions', $subscriptionData, $payarcBearerToken, $payarcMode);
-            error_log("PayArc subscription response: " . json_encode($subResult));
             
             if (isset($subResult['error']) || ($subResult['http_code'] ?? 0) >= 400) {
                 $errorMsg = $subResult['message'] ?? $subResult['error'] ?? 'Failed to create subscription';
-                error_log("PayArc subscription error: " . json_encode($subResult));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
@@ -429,7 +406,6 @@ try {
                 try {
                     $donorId = getOrCreateDonor($donorName, $donorEmail);
                 } catch (\Throwable $e) {
-                    error_log("PayArc subscription donor creation error: " . $e->getMessage());
                 }
             }
             
