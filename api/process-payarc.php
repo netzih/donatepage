@@ -175,10 +175,21 @@ try {
             // Payment succeeded - try to store in database, but don't fail if DB has issues
             $donationId = 0;
             
+            // Create or get donor record
+            $donorId = null;
+            if (!empty($donorEmail)) {
+                try {
+                    $donorId = getOrCreateDonor($donorName, $donorEmail);
+                } catch (\Throwable $e) {
+                    error_log("PayArc donor creation error: " . $e->getMessage());
+                }
+            }
+            
             try {
                 $donationId = db()->insert('donations', [
                     'amount' => $amount,
                     'frequency' => 'once',
+                    'donor_id' => $donorId,
                     'donor_name' => $donorName,
                     'donor_email' => $donorEmail,
                     'display_name' => $displayName ?: null,
