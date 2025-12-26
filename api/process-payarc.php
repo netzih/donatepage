@@ -296,16 +296,44 @@ try {
                 jsonResponse(['error' => 'Failed to create customer account'], 400);
             }
             
-            // Create subscription
-            // Create subscription - include card details since customer doesn't have card attached
+            // Step 1: Create or get a plan for this amount
+            // Plan ID format: monthly_donation_[amount in cents]
+            $planId = 'monthly_donation_' . ($amount * 100);
+            $planName = 'Monthly $' . $amount . ' Donation';
+            
+            // Try to get the plan first
+            $planResult = payarcGetRequest('/plans/' . $planId, $payarcBearerToken, $payarcMode);
+            
+            // If plan doesn't exist, create it
+            if (($planResult['http_code'] ?? 0) === 404 || isset($planResult['error'])) {
+                error_log("PayArc plan not found, creating: " . $planId);
+                
+                $planData = [
+                    'plan_id' => $planId,
+                    'name' => $planName,
+                    'amount' => (string)($amount * 100),
+                    'interval' => 'month',
+                    'interval_count' => 1,
+                    'currency' => 'usd'
+                ];
+                
+                error_log("PayArc plan creation request: " . json_encode($planData));
+                $planResult = payarcRequest('/plans', $planData, $payarcBearerToken, $payarcMode);
+                error_log("PayArc plan creation response: " . json_encode($planResult));
+                
+                if (isset($planResult['error']) || ($planResult['http_code'] ?? 0) >= 400) {
+                    $errorMsg = $planResult['message'] ?? $planResult['error'] ?? 'Failed to create plan';
+                    error_log("PayArc plan error: " . json_encode($planResult));
+                    jsonResponse(['error' => $errorMsg], 400);
+                }
+            }
+            
+            // Step 2: Create subscription with the plan
             $subscriptionData = [
                 'customer_id' => $customerId,
-                'amount' => (string)($amount * 100), // cents as string
-                'currency' => 'usd',
-                'interval' => 'month',
-                'interval_count' => 1,
+                'plan_id' => $planId,
                 'statement_description' => 'Monthly Donation',
-                // Include card details for the subscription
+                // Include card details for the subscription charge
                 'card_number' => $cardNumber,
                 'exp_month' => str_pad($expMonth, 2, '0', STR_PAD_LEFT),
                 'exp_year' => (string)$fullYear,
