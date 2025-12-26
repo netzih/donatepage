@@ -128,3 +128,30 @@ function sendAdminNotification($donation) {
     
     return sendEmail($adminEmail, $subject, $body);
 }
+
+/**
+ * Send all donation notification emails
+ * @param int $donationId
+ */
+function sendDonationEmails($donationId) {
+    try {
+        // Get donation details
+        $donation = db()->fetchOne("SELECT * FROM donations WHERE id = ?", [$donationId]);
+        
+        if (!$donation) {
+            error_log("sendDonationEmails: Donation not found for ID $donationId");
+            return false;
+        }
+        
+        // Send donor receipt
+        sendDonorReceipt($donation);
+        
+        // Send admin notification
+        sendAdminNotification($donation);
+        
+        return true;
+    } catch (\Throwable $e) {
+        error_log("sendDonationEmails error: " . $e->getMessage());
+        return false;
+    }
+}
