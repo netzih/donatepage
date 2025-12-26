@@ -50,10 +50,6 @@ RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
 RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
 RewriteRule ^admin/(.*)$ admin/$1.php [L]
 
-RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
-RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
-RewriteRule ^admin/(.*)$ admin/$1.php [L]
-
 # =========================================
 # SECURITY HARDENING
 # =========================================
