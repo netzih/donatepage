@@ -246,7 +246,7 @@ $queryString = http_build_query($queryParams);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donations - Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
     <style>
         .filters-bar {
             background: #f8f9fa;

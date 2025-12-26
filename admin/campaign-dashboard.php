@@ -77,7 +77,7 @@ $donations = db()->fetchAll(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Campaign: <?= h($campaign['title']) ?> - Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
     <style>
         .stats-grid {
             display: grid;
