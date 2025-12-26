@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId . '/cancel');
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_POST => true,
+                    CURLOPT_CUSTOMREQUEST => 'PATCH',
                     CURLOPT_POSTFIELDS => '{}',
                     CURLOPT_HTTPHEADER => [
                         'Authorization: Bearer ' . $payarcBearerToken,
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId . '/cancel');
                     curl_setopt_array($ch, [
                         CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
+                        CURLOPT_CUSTOMREQUEST => 'PATCH',
                         CURLOPT_POSTFIELDS => '{}',
                         CURLOPT_HTTPHEADER => [
                             'Authorization: Bearer ' . $payarcBearerToken,
