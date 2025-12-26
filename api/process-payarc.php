@@ -6,6 +6,10 @@
  * Supports one-time and recurring (subscription) payments
  */
 
+// Suppress PHP warnings/notices from breaking JSON output
+error_reporting(0);
+ini_set('display_errors', 0);
+
 require_once __DIR__ . '/../includes/functions.php';
 session_start();
 
@@ -154,8 +158,12 @@ try {
             
             $result = payarcRequest('/charges', $chargeData, $payarcBearerToken, $payarcMode);
             
+            // Log the response for debugging
+            error_log("PayArc charge response: " . json_encode($result));
+            
             if (isset($result['error']) || ($result['http_code'] ?? 0) >= 400) {
                 $errorMsg = $result['message'] ?? $result['error'] ?? 'Payment failed';
+                error_log("PayArc error: " . json_encode($result));
                 jsonResponse(['error' => $errorMsg], 400);
             }
             
