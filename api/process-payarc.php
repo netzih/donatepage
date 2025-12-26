@@ -173,41 +173,60 @@ try {
             $cardBrand = detectCardBrand($cardNumber);
             
             // Store donation in database
-            $donationId = db()->insert('donations', [
-                'amount' => $amount,
-                'frequency' => 'once',
-                'donor_name' => $donorName,
-                'donor_email' => $donorEmail,
-                'display_name' => $displayName ?: null,
-                'donation_message' => $donationMessage ?: null,
-                'is_anonymous' => $isAnonymous ? 1 : 0,
-                'payment_method' => 'payarc',
-                'transaction_id' => $transactionId,
-                'status' => 'completed',
-                'campaign_id' => $campaignId,
-                'metadata' => json_encode([
-                    'card_last4' => $cardLast4,
-                    'card_brand' => $cardBrand,
-                    'payarc_response' => $result['data'] ?? $result
-                ]),
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
+            try {
+                $donationId = db()->insert('donations', [
+                    'amount' => $amount,
+                    'frequency' => 'once',
+                    'donor_name' => $donorName,
+                    'donor_email' => $donorEmail,
+                    'display_name' => $displayName ?: null,
+                    'donation_message' => $donationMessage ?: null,
+                    'is_anonymous' => $isAnonymous ? 1 : 0,
+                    'payment_method' => 'payarc',
+                    'transaction_id' => $transactionId,
+                    'status' => 'completed',
+                    'campaign_id' => $campaignId,
+                    'metadata' => json_encode([
+                        'card_last4' => $cardLast4,
+                        'card_brand' => $cardBrand,
+                        'payarc_response' => $result['data'] ?? $result
+                    ]),
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+            } catch (Exception $dbError) {
+                error_log("PayArc DB insert error: " . $dbError->getMessage());
+                // Payment succeeded but DB failed - still return success with transaction ID
+                jsonResponse([
+                    'success' => true,
+                    'donationId' => 0,
+                    'transactionId' => $transactionId,
+                    'message' => 'Payment successful (record pending)'
+                ]);
+            }
             
             // Mark as matched if campaign has matching enabled
             if ($campaignId) {
-                require_once __DIR__ . '/../includes/campaigns.php';
-                $campaign = getCampaignById($campaignId);
-                if ($campaign && $campaign['matching_enabled']) {
-                    db()->execute(
-                        "UPDATE donations SET is_matched = 1 WHERE id = ?",
-                        [$donationId]
-                    );
+                try {
+                    require_once __DIR__ . '/../includes/campaigns.php';
+                    $campaign = getCampaignById($campaignId);
+                    if ($campaign && $campaign['matching_enabled']) {
+                        db()->execute(
+                            "UPDATE donations SET is_matched = 1 WHERE id = ?",
+                            [$donationId]
+                        );
+                    }
+                } catch (Exception $e) {
+                    error_log("Campaign matching error: " . $e->getMessage());
                 }
             }
             
             // Send notification emails
-            require_once __DIR__ . '/../includes/mail.php';
-            sendDonationEmails($donationId);
+            try {
+                require_once __DIR__ . '/../includes/mail.php';
+                sendDonationEmails($donationId);
+            } catch (Exception $e) {
+                error_log("Email error: " . $e->getMessage());
+            }
             
             jsonResponse([
                 'success' => true,
