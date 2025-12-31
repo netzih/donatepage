@@ -110,6 +110,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     }
+    
+    if ($action === 'link_orphan_donors') {
+        try {
+            // First, create donors from donations that have email but no donor_id
+            $orphanDonations = db()->fetchAll(
+                "SELECT DISTINCT donor_email, MIN(donor_name) as donor_name, MIN(created_at) as created_at
+                 FROM donations 
+                 WHERE donor_email IS NOT NULL 
+                   AND donor_email != ''
+                   AND (donor_id IS NULL OR donor_id = 0)
+                 GROUP BY donor_email"
+            );
+            
+            $donorsCreated = 0;
+            $donationsLinked = 0;
+            
+            foreach ($orphanDonations as $od) {
+                // Create or get donor
+                $donorId = getOrCreateDonor($od['donor_name'] ?? 'Unknown', $od['donor_email']);
+                
+                if ($donorId) {
+                    // Update all donations with this email to link to the donor
+                    $result = db()->execute(
+                        "UPDATE donations SET donor_id = ? WHERE donor_email = ? AND (donor_id IS NULL OR donor_id = 0)",
+                        [$donorId, $od['donor_email']]
+                    );
+                    $donorsCreated++;
+                }
+            }
+            
+            // Count how many donations now have donor_id
+            $donationsLinked = db()->fetch(
+                "SELECT COUNT(*) as count FROM donations WHERE donor_id IS NOT NULL AND donor_id > 0"
+            )['count'] ?? 0;
+            
+            $success = "Processed " . count($orphanDonations) . " unique emails. Donors created/linked successfully!";
+            header('Location: /admin/donations?success=linked&count=' . count($orphanDonations));
+            exit;
+        } catch (Exception $e) {
+            $error = 'Failed to link donors: ' . $e->getMessage();
+        }
+    }
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -384,11 +426,31 @@ $queryString = http_build_query($queryParams);
             </div>
             <?php endif; ?>
             
-            <!-- Add Donation Button -->
-            <div style="margin-bottom: 20px;">
+            <!-- Action Buttons -->
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
                 <button onclick="document.getElementById('add-donation-modal').style.display='flex'" class="btn btn-primary">
                     + Add Manual Donation
                 </button>
+                
+                <?php
+                // Count orphan donations (have email but no donor_id)
+                $orphanCount = db()->fetch(
+                    "SELECT COUNT(*) as count FROM donations 
+                     WHERE donor_email IS NOT NULL 
+                       AND donor_email != '' 
+                       AND (donor_id IS NULL OR donor_id = 0)"
+                )['count'] ?? 0;
+                ?>
+                
+                <?php if ($orphanCount > 0): ?>
+                <form method="POST" style="display: inline;" onsubmit="return confirm('This will create donor records for <?= $orphanCount ?> donations that have email addresses but no linked donor. Continue?');">
+                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                    <input type="hidden" name="action" value="link_orphan_donors">
+                    <button type="submit" class="btn btn-secondary" style="background: #6c757d; color: white;">
+                        🔗 Link <?= $orphanCount ?> Orphan Donation<?= $orphanCount > 1 ? 's' : '' ?> to Donors
+                    </button>
+                </form>
+                <?php endif; ?>
             </div>
 
             <!-- Filters -->
