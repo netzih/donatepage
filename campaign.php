@@ -262,37 +262,40 @@ if ($campaign) {
                 </div>
                 <?php else: ?>
                 
-                <div class="card-step">DONATE NOW</div>
+                <div class="card-step" id="card-step-label">DONATE NOW</div>
                 
-                <div class="frequency-toggle">
-                    <button class="freq-btn active" data-freq="once">One-time</button>
-                    <button class="freq-btn" data-freq="monthly">Monthly</button>
-                </div>
-                
-                <div class="amount-grid">
-                    <?php foreach ($presetAmounts as $amt): ?>
-                    <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
-                        <?= h($currencySymbol) ?><?= $amt ?>
-                    </button>
-                    <?php endforeach; ?>
-                </div>
-                
-                <div class="custom-amount">
-                    <span class="currency"><?= h($currencySymbol) ?></span>
-                    <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
-                </div>
-                
-                <?php if ($campaign['matching_enabled']): ?>
-                <div class="matching-display">
-                    <div class="your-donation">
-                        Your donation: <span id="donation-amount"><?= h($currencySymbol) ?>100</span>
+                <!-- Amount Selection Container (hidden when on payment step) -->
+                <div id="amount-selection-container">
+                    <div class="frequency-toggle">
+                        <button class="freq-btn active" data-freq="once">One-time</button>
+                        <button class="freq-btn" data-freq="monthly">Monthly</button>
                     </div>
-                    <div class="org-receives">
-                        <span class="sparkle">✨</span>
-                        <strong>The organization gets: <span id="matched-amount"><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></span></strong>
+                    
+                    <div class="amount-grid">
+                        <?php foreach ($presetAmounts as $amt): ?>
+                        <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
+                            <?= h($currencySymbol) ?><?= $amt ?>
+                        </button>
+                        <?php endforeach; ?>
                     </div>
+                    
+                    <div class="custom-amount">
+                        <span class="currency"><?= h($currencySymbol) ?></span>
+                        <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
+                    </div>
+                    
+                    <?php if ($campaign['matching_enabled']): ?>
+                    <div class="matching-display">
+                        <div class="your-donation">
+                            Your donation: <span id="donation-amount"><?= h($currencySymbol) ?>100</span>
+                        </div>
+                        <div class="org-receives">
+                            <span class="sparkle">✨</span>
+                            <strong>The organization gets: <span id="matched-amount"><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></span></strong>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
                 
                 <!-- Step 2: Payment Form (hidden initially) -->
                 <div id="payment-step" class="payment-step" style="display: none;">

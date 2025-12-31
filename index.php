@@ -92,24 +92,27 @@ if ($embedMode > 0) {
                 <?php endif; ?>
                 
                 <div class="donation-card" id="donate">
-                    <div class="card-step">AMOUNT • 1/2</div>
+                    <div class="card-step" id="card-step-label">AMOUNT • 1/2</div>
                     
-                    <div class="frequency-toggle">
-                        <button class="freq-btn active" data-freq="once">One-time</button>
-                        <button class="freq-btn" data-freq="monthly">Monthly</button>
-                    </div>
-                    
-                    <div class="amount-grid">
-                        <?php foreach ($presetAmounts as $amt): ?>
-                        <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
-                            <?= h($currencySymbol) ?><?= $amt ?>
-                        </button>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div class="custom-amount">
-                        <span class="currency"><?= h($currencySymbol) ?></span>
-                        <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
+                    <!-- Amount Selection Container (hidden when on payment step) -->
+                    <div id="amount-selection-container">
+                        <div class="frequency-toggle">
+                            <button class="freq-btn active" data-freq="once">One-time</button>
+                            <button class="freq-btn" data-freq="monthly">Monthly</button>
+                        </div>
+                        
+                        <div class="amount-grid">
+                            <?php foreach ($presetAmounts as $amt): ?>
+                            <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
+                                <?= h($currencySymbol) ?><?= $amt ?>
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <div class="custom-amount">
+                            <span class="currency"><?= h($currencySymbol) ?></span>
+                            <input type="number" id="custom-amount" placeholder="Other amount" min="1" step="1">
+                        </div>
                     </div>
                     
                     <!-- Step 2: Payment Form (hidden initially) -->

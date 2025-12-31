@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const stripeBtn = document.getElementById('stripe-btn');
     const amountStep = document.getElementById('amount-step');
     const paymentStep = document.getElementById('payment-step');
+    const amountSelectionContainer = document.getElementById('amount-selection-container');
     const backBtn = document.getElementById('back-btn');
     const submitBtn = document.getElementById('submit-payment');
     const paymentMessage = document.getElementById('payment-message');
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (CONFIG.payarcEnabled) {
                 // PayArc: Just show the payment form (no API call needed yet)
                 amountStep.style.display = 'none';
+                if (amountSelectionContainer) amountSelectionContainer.style.display = 'none';
                 paymentStep.style.display = 'block';
 
                 // Update button text for monthly
@@ -291,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Show payment step, hide amount step
                 amountStep.style.display = 'none';
+                if (amountSelectionContainer) amountSelectionContainer.style.display = 'none';
                 paymentStep.style.display = 'block';
 
                 // Update button text for monthly
@@ -314,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         backBtn.addEventListener('click', () => {
             paymentStep.style.display = 'none';
             amountStep.style.display = 'flex';
+            if (amountSelectionContainer) amountSelectionContainer.style.display = 'block';
 
             // Cleanup Stripe elements if present
             if (paymentElement) {
