@@ -1,6 +1,6 @@
 /**
- * Donation Page JavaScript
- * Handles amount selection, PayArc Direct API, Stripe Payment Elements, and PayPal integration
+ * Campaign Page JavaScript
+ * Handles campaign-specific donation flow with matching display and PayArc/Stripe support
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let donationId = null;
     let paymentMode = 'payment'; // 'payment' or 'subscription'
 
+    // Campaign-specific config
+    const matchingEnabled = CONFIG.matchingEnabled || false;
+    const matchingMultiplier = CONFIG.matchingMultiplier || 1;
+    const campaignId = CONFIG.campaignId || null;
+    const currencySymbol = CONFIG.currencySymbol || '$';
+
     // Elements
     const amountBtns = document.querySelectorAll('.amount-btn');
     const freqBtns = document.querySelectorAll('.freq-btn');
@@ -26,11 +32,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const paymentMessage = document.getElementById('payment-message');
     const donorName = document.getElementById('donor-name');
     const donorEmail = document.getElementById('donor-email');
+    const displayName = document.getElementById('display-name');
+    const donationMessageInput = document.getElementById('donation-message');
+    const isAnonymous = document.getElementById('is-anonymous');
 
     // PayArc card inputs
     const cardNumberInput = document.getElementById('card-number');
     const cardExpiryInput = document.getElementById('card-expiry');
     const cardCvvInput = document.getElementById('card-cvv');
+
+    // Matching display elements
+    const donationAmountEl = document.getElementById('donation-amount');
+    const matchedAmountEl = document.getElementById('matched-amount');
 
     // Always initialize Stripe if key exists (needed for Apple Pay/Google Pay even when PayArc handles cards)
     if (CONFIG.stripeKey) {
@@ -64,13 +77,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Update matching display
+    function updateMatchingDisplay() {
+        if (!matchingEnabled) return;
+
+        if (donationAmountEl) {
+            donationAmountEl.textContent = currencySymbol + selectedAmount.toLocaleString();
+        }
+        if (matchedAmountEl) {
+            const matchedAmount = selectedAmount * matchingMultiplier;
+            matchedAmountEl.textContent = currencySymbol + matchedAmount.toLocaleString();
+        }
+    }
+
     // Amount button click
     amountBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             amountBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedAmount = parseInt(btn.dataset.amount);
-            customInput.value = '';
+            if (customInput) customInput.value = '';
+            updateMatchingDisplay();
         });
     });
 
@@ -81,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (val > 0) {
                 amountBtns.forEach(b => b.classList.remove('active'));
                 selectedAmount = val;
+                updateMatchingDisplay();
             }
         });
 
@@ -113,12 +141,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // PayArc: Just show the payment form (no API call needed yet)
                 amountStep.style.display = 'none';
                 paymentStep.style.display = 'block';
-                document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
 
                 // Update button text for monthly
                 if (frequency === 'monthly') {
                     document.getElementById('button-text').textContent =
-                        `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
+                        `Start ${currencySymbol}${selectedAmount}/month Donation`;
                 } else {
                     document.getElementById('button-text').textContent = 'Complete Donation';
                 }
@@ -128,12 +155,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (stripe && expressCheckoutContainer) {
                     try {
                         // Create a PaymentIntent first to get the client secret
-                        const intentResponse = await fetch('api/create-payment-intent.php', {
+                        const intentResponse = await fetch('/api/create-payment-intent.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 amount: selectedAmount,
                                 frequency: frequency,
+                                campaign_id: campaignId,
                                 csrf_token: CONFIG.csrfToken
                             })
                         });
@@ -170,12 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Stripe: Create PaymentIntent or SetupIntent
-                const response = await fetch('api/create-payment-intent.php', {
+                const response = await fetch('/api/create-payment-intent.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         amount: selectedAmount,
                         frequency: frequency,
+                        campaign_id: campaignId,
                         csrf_token: CONFIG.csrfToken
                     })
                 });
@@ -210,13 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 amountStep.style.display = 'none';
                 paymentStep.style.display = 'block';
 
-                // Update step indicator and button text
-                document.querySelector('.card-step').textContent = 'PAYMENT • 2/2';
-
                 // Update button text for monthly
                 if (frequency === 'monthly') {
                     document.getElementById('button-text').textContent =
-                        `Start ${CONFIG.currencySymbol}${selectedAmount}/month Donation`;
+                        `Start ${currencySymbol}${selectedAmount}/month Donation`;
                 } else {
                     document.getElementById('button-text').textContent = 'Complete Donation';
                 }
@@ -234,7 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
         backBtn.addEventListener('click', () => {
             paymentStep.style.display = 'none';
             amountStep.style.display = 'flex';
-            document.querySelector('.card-step').textContent = 'AMOUNT • 1/2';
 
             // Cleanup Stripe elements if present
             if (paymentElement) {
@@ -309,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const action = frequency === 'monthly' ? 'subscribe' : 'charge';
 
-        const response = await fetch('api/process-payarc.php', {
+        const response = await fetch('/api/process-payarc.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -321,6 +346,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cvv: cvv,
                 donor_name: donorName.value.trim(),
                 donor_email: donorEmail.value.trim(),
+                display_name: displayName ? displayName.value.trim() : '',
+                donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                campaign_id: campaignId,
                 csrf_token: CONFIG.csrfToken
             })
         });
@@ -332,7 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (result.success) {
-            window.location.href = 'success.php?id=' + result.donationId;
+            const successUrl = '/success.php?id=' + result.donationId +
+                (campaignId ? '&campaign=' + campaignId : '');
+            window.location.href = successUrl;
         } else {
             throw new Error('Payment was not completed. Please try again.');
         }
@@ -384,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (intentId && intentStatus === 'succeeded') {
             // Confirm payment/subscription on server
-            const confirmResponse = await fetch('api/confirm-payment.php', {
+            const confirmResponse = await fetch('/api/confirm-payment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -392,14 +423,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     intent_id: intentId,
                     donor_name: donorName.value.trim(),
                     donor_email: donorEmail.value.trim(),
-                    amount: selectedAmount
+                    display_name: displayName ? displayName.value.trim() : '',
+                    donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                    is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                    amount: selectedAmount,
+                    campaign_id: campaignId
                 })
             });
 
             const confirmData = await confirmResponse.json();
 
             if (confirmData.success) {
-                window.location.href = 'success.php?id=' + confirmData.donationId;
+                // Redirect with campaign context
+                const successUrl = '/success.php?id=' + confirmData.donationId +
+                    (campaignId ? '&campaign=' + campaignId : '');
+                window.location.href = successUrl;
             } else {
                 showMessage(confirmData.error || 'Payment confirmation failed', 'error');
                 setLoading(false);
@@ -412,15 +450,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper functions
     function showMessage(text, type = 'info') {
+        if (!paymentMessage) return;
         paymentMessage.textContent = text;
         paymentMessage.className = 'payment-message ' + type;
         paymentMessage.style.display = 'block';
     }
 
     function setLoading(isLoading) {
+        if (!submitBtn) return;
         submitBtn.disabled = isLoading;
-        document.getElementById('button-text').style.display = isLoading ? 'none' : 'inline';
-        document.getElementById('spinner').style.display = isLoading ? 'inline-block' : 'none';
+        const buttonText = document.getElementById('button-text');
+        const spinner = document.getElementById('spinner');
+        if (buttonText) buttonText.style.display = isLoading ? 'none' : 'inline';
+        if (spinner) spinner.style.display = isLoading ? 'inline-block' : 'none';
     }
 
     function isValidEmail(email) {
@@ -444,13 +486,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const response = await fetch('api/process-paypal.php', {
+                const response = await fetch('/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'create',
                         amount: selectedAmount,
                         frequency: frequency,
+                        campaign_id: campaignId,
                         csrf_token: CONFIG.csrfToken
                     })
                 });
@@ -464,12 +507,13 @@ document.addEventListener('DOMContentLoaded', () => {
             },
 
             onApprove: async (data, actions) => {
-                const response = await fetch('api/process-paypal.php', {
+                const response = await fetch('/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'capture',
                         orderId: data.orderID,
+                        campaign_id: campaignId,
                         csrf_token: CONFIG.csrfToken
                     })
                 });
@@ -477,7 +521,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (result.success) {
-                    window.location.href = 'success.php?id=' + result.donationId;
+                    const successUrl = '/success.php?id=' + result.donationId +
+                        (campaignId ? '&campaign=' + campaignId : '');
+                    window.location.href = successUrl;
                 } else {
                     alert('Payment failed: ' + (result.error || 'Unknown error'));
                 }
@@ -489,4 +535,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }).render('#paypal-button-container');
     }
+
+    // Smooth scroll for donate anchor
+    document.querySelectorAll('a[href="#donate"]').forEach(anchor => {
+        anchor.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = document.getElementById('donate');
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    // Tab switching functionality
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+
+            // Update button states
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update content visibility
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === 'tab-' + tabId) {
+                    content.classList.add('active');
+                }
+            });
+        });
+    });
+
+    // Initialize matching display on load
+    updateMatchingDisplay();
 });

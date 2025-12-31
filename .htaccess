@@ -19,11 +19,21 @@ RewriteRule ^$ index.php [L]
 # CLEAN URLs - Remove .php extension
 # =========================================
 
-# If the request is for an existing directory, do nothing
-RewriteCond %{REQUEST_FILENAME} -d
+# Prevent loops
+RewriteCond %{ENV:REDIRECT_STATUS} 200
 RewriteRule ^ - [L]
 
-# If the request is for an existing file, do nothing
+# 1. Specific Admin rules (Must come BEFORE generic ones)
+RewriteCond %{REQUEST_URI} ^/admin/donor/([0-9]+)/?$ [NC]
+RewriteRule ^admin/donor/([0-9]+)/?$ admin/donor.php?id=$1 [L,QSA]
+
+# 2. Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
+RewriteCond %{REQUEST_URI} !campaign\.php
+RewriteRule ^campaign/([a-zA-Z0-9_-]+)/?$ campaign.php?slug=$1 [L,QSA]
+
+# 3. Generic Clean URLs (Remove .php extension)
+# If the request is for an existing directory or file, do nothing
+RewriteCond %{REQUEST_FILENAME} -d [OR]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -35,7 +45,7 @@ RewriteRule ^ /%1 [R=301,L]
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.*)$ $1.php [L]
 
-# Handle /admin/ routes
+# Generic admin route handler
 RewriteCond %{REQUEST_URI} ^/admin/(.*)$ [NC]
 RewriteCond %{DOCUMENT_ROOT}/admin/%1.php -f
 RewriteRule ^admin/(.*)$ admin/$1.php [L]
@@ -78,9 +88,6 @@ ServerSignature Off
     # Prevent MIME type sniffing
     Header set X-Content-Type-Options "nosniff"
     
-    # Prevent clickjacking
-    Header set X-Frame-Options "SAMEORIGIN"
-    
     # Enable XSS protection
     Header set X-XSS-Protection "1; mode=block"
     
@@ -89,9 +96,6 @@ ServerSignature Off
     
     # Permissions policy
     Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
-    
-    # Content Security Policy (adjust as needed)
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.paypal.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com; frame-src https://js.stripe.com https://www.paypal.com; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com"
     
     # Remove PHP version header
     Header unset X-Powered-By
@@ -104,6 +108,7 @@ ServerSignature Off
     php_flag expose_php off
     php_value session.cookie_httponly 1
     php_value session.cookie_secure 1
+    php_value session.cookie_samesite None
     php_value session.use_strict_mode 1
 </IfModule>
 

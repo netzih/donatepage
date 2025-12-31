@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setSetting('tagline', trim($_POST['tagline'] ?? ''));
             setSetting('preset_amounts', trim($_POST['preset_amounts'] ?? '36,54,100,180,500,1000'));
             setSetting('currency_symbol', trim($_POST['currency_symbol'] ?? '$'));
+            setSetting('timezone', trim($_POST['timezone'] ?? 'America/Los_Angeles'));
             
             $success = 'Settings saved successfully!';
         } catch (Exception $e) {
@@ -53,26 +54,11 @@ $csrfToken = generateCsrfToken();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
 </head>
 <body>
     <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><?= h($settings['org_name'] ?? 'Donation Platform') ?></h2>
-                <span>Admin Panel</span>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="index.php">📊 Dashboard</a>
-                <a href="donations.php">💳 Donations</a>
-                <a href="settings.php" class="active">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php">🔗 CiviCRM</a>
-                <hr>
-                <a href="logout.php">🚪 Logout</a>
-            </nav>
-        </aside>
+        <?php $currentPage = 'settings'; include 'includes/sidebar.php'; ?>
         
         <main class="main-content">
             <header class="content-header">
@@ -143,8 +129,41 @@ $csrfToken = generateCsrfToken();
                                style="max-width: 100px;">
                     </div>
                 </section>
+
+                <section class="card">
+                    <h2>Regional Settings</h2>
+                    
+                    <div class="form-group">
+                        <label for="timezone">Application Timezone</label>
+                        <select id="timezone" name="timezone">
+                            <?php 
+                            $timezones = [
+                                'America/New_York' => 'Eastern Time (EST/EDT)',
+                                'America/Chicago' => 'Central Time (CST/CDT)',
+                                'America/Denver' => 'Mountain Time (MST/MDT)',
+                                'America/Phoenix' => 'Arizona (MST)',
+                                'America/Los_Angeles' => 'Pacific Time (PST/PDT)',
+                                'America/Anchorage' => 'Alaska Time',
+                                'America/Adak' => 'Hawaii-Aleutian Time',
+                                'Pacific/Honolulu' => 'Hawaii Time (HST)',
+                                'Europe/London' => 'London (GMT/BST)',
+                                'Europe/Paris' => 'Paris (CET/CEST)',
+                                'Israel' => 'Israel Time',
+                                'UTC' => 'UTC'
+                            ];
+                            $currentTz = $settings['timezone'] ?? 'America/Los_Angeles';
+                            foreach ($timezones as $tz_value => $tz_label): 
+                            ?>
+                                <option value="<?= h($tz_value) ?>" <?= $currentTz === $tz_value ? 'selected' : '' ?>>
+                                    <?= h($tz_label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small>This affects how donation times are recorded and displayed.</small>
+                    </div>
+                </section>
                 
-                <button type="submit" class="btn btn-primary">Save Settings</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Save Settings</button>
             </form>
             
             <section class="card" style="margin-top: 24px;">
@@ -154,7 +173,7 @@ $csrfToken = generateCsrfToken();
                 <div class="form-group">
                     <label>Minimal Embed (White Background)</label>
                     <div style="display: flex; gap: 8px;">
-                        <textarea id="embed-minimal" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=1" width="100%" height="600" frameborder="0" style="max-width: 500px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <textarea id="embed-minimal" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=1" width="100%" height="650" frameborder="0" allow="payment" style="border:none; overflow:hidden; display:block;"></iframe>') ?></textarea>
                         <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-minimal')" style="white-space: nowrap;">📋 Copy</button>
                     </div>
                     <small>Clean white background, perfect for light-themed websites</small>
@@ -163,7 +182,7 @@ $csrfToken = generateCsrfToken();
                 <div class="form-group" style="margin-top: 20px;">
                     <label>Styled Embed (With Background)</label>
                     <div style="display: flex; gap: 8px;">
-                        <textarea id="embed-styled" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=2" width="100%" height="700" frameborder="0" style="max-width: 600px; margin: 0 auto; display: block;"></iframe>') ?></textarea>
+                        <textarea id="embed-styled" readonly style="flex: 1; height: 80px; font-family: monospace; font-size: 12px;"><?= h('<iframe src="' . APP_URL . '/?embed=2" width="100%" height="750" frameborder="0" allow="payment" style="border:none; overflow:hidden; display:block;"></iframe>') ?></textarea>
                         <button type="button" class="btn btn-secondary" onclick="copyEmbedCode('embed-styled')" style="white-space: nowrap;">📋 Copy</button>
                     </div>
                     <small>Includes your background image and branding</small>

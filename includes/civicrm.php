@@ -41,17 +41,14 @@ function civicrm_api4($entity, $action, $params = []) {
             $url = $baseUrl . '/civicrm/ajax/rest';
     }
     
-    // Add common API3 parameters - build query string properly
-    $queryParams = [
+    // API parameters - move to POST body to avoid 403 blocks and expose keys in logs
+    $postParams = [
         'entity' => $entity,
         'action' => $action,
         'api_key' => $apiKey,
         'key' => $siteKey,
         'json' => json_encode($params)
     ];
-    
-    $separator = (strpos($url, '?') !== false) ? '&' : '?';
-    $url .= $separator . http_build_query($queryParams);
     
     // Check SSL verification setting
     $skipSsl = getSetting('civicrm_skip_ssl') === '1';
@@ -60,7 +57,7 @@ function civicrm_api4($entity, $action, $params = []) {
     $ch = curl_init();
     
     // CiviCRM requires POST for operations that modify data
-    // Use POST for all requests for consistency
+    // Moving all parameters to POST body for security and compatibility
     $options = [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
@@ -69,18 +66,27 @@ function civicrm_api4($entity, $action, $params = []) {
         CURLOPT_SSL_VERIFYHOST => $skipSsl ? 0 : 2,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => '' // Empty POST body, params are in URL
+        CURLOPT_POSTFIELDS => http_build_query($postParams),
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) DonationPlatform/1.0',
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/x-www-form-urlencoded'
+        ]
     ];
     
     curl_setopt_array($ch, $options);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
+    $curlError = curl_error($ch);
     curl_close($ch);
     
-    if ($error) {
-        return ['error' => 'Connection error: ' . $error];
+    if ($curlError) {
+        return ['error' => 'Connection error: ' . $curlError];
+    }
+    
+    // Check for HTTP errors first
+    if ($httpCode === 403) {
+        return ['error' => 'API error (HTTP 403 Forbidden). Your server might be blocking the request. Try enabling "Skip SSL verification" or check with your host. Response: ' . substr(strip_tags($response), 0, 200)];
     }
     
     // Try to decode JSON response
@@ -88,13 +94,13 @@ function civicrm_api4($entity, $action, $params = []) {
     
     // Check if JSON decode failed
     if ($data === null && $response !== 'null') {
-        return ['error' => 'Invalid JSON response: ' . substr($response, 0, 500)];
+        return ['error' => 'Invalid JSON response (HTTP ' . $httpCode . '): ' . substr(strip_tags($response), 0, 500)];
     }
     
-    // Check for HTTP errors
+    // Check for other HTTP errors
     if ($httpCode !== 200) {
         return [
-            'error' => 'API error (HTTP ' . $httpCode . '): ' . ($data['error_message'] ?? $response)
+            'error' => 'API error (HTTP ' . $httpCode . '): ' . ($data['error_message'] ?? substr(strip_tags($response), 0, 200))
         ];
     }
     

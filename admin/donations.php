@@ -7,6 +7,111 @@ session_start();
 require_once __DIR__ . '/../includes/functions.php';
 requireAdmin();
 
+$csrfToken = generateCsrfToken();
+
+// Handle POST actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        die('Invalid request');
+    }
+    
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'assign_campaign') {
+        $donationId = (int)$_POST['donation_id'];
+        $campaignId = $_POST['campaign_id'] === '' ? null : (int)$_POST['campaign_id'];
+        
+        try {
+            db()->update('donations', ['campaign_id' => $campaignId], 'id = ?', [$donationId]);
+            header('Location: ' . $_SERVER['REQUEST_URI']);
+            exit;
+        } catch (Exception $e) {
+            $error = 'Failed to assign campaign: ' . $e->getMessage();
+        }
+    }
+    
+    if ($action === 'add_manual_donation') {
+        $donationData = [
+            'donor_name' => trim($_POST['donor_name'] ?? ''),
+            'donor_email' => trim($_POST['donor_email'] ?? ''),
+            'display_name' => trim($_POST['display_name'] ?? ''),
+            'amount' => (float)($_POST['amount'] ?? 0),
+            'frequency' => 'once',
+            'payment_method' => 'manual',
+            'transaction_id' => 'manual_' . time() . '_' . rand(1000, 9999),
+            'status' => 'completed',
+            'donation_message' => trim($_POST['donation_message'] ?? ''),
+            'is_anonymous' => isset($_POST['is_anonymous']) ? 1 : 0,
+            'is_matched' => isset($_POST['is_matched']) ? 1 : 0,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        
+        // Add donor_id
+        $donationData['donor_id'] = getOrCreateDonor($donationData['donor_name'], $donationData['donor_email']);
+        
+        // Add campaign if specified
+        if (!empty($_POST['campaign_id'])) {
+            $donationData['campaign_id'] = (int)$_POST['campaign_id'];
+        }
+        
+        if ($donationData['amount'] < 1) {
+            $error = 'Amount must be at least $1';
+        } elseif (empty($donationData['donor_name'])) {
+            $error = 'Donor name is required';
+        } else {
+            try {
+                db()->insert('donations', $donationData);
+                header('Location: /admin/donations?success=added');
+                exit;
+            } catch (Exception $e) {
+                // If some columns don't exist, try without them
+                unset($donationData['display_name'], $donationData['donation_message'], $donationData['is_anonymous'], $donationData['is_matched']);
+                try {
+                    db()->insert('donations', $donationData);
+                    header('Location: /admin/donations?success=added');
+                    exit;
+                } catch (Exception $e2) {
+                    $error = 'Failed to add donation: ' . $e2->getMessage();
+                }
+            }
+        }
+    }
+    
+    if ($action === 'update_donation') {
+        $donationId = (int)$_POST['donation_id'];
+        $updateData = [
+            'donor_name' => trim($_POST['donor_name'] ?? ''),
+            'donor_email' => trim($_POST['donor_email'] ?? ''),
+            'amount' => (float)($_POST['amount'] ?? 0),
+            'is_matched' => isset($_POST['is_matched']) ? 1 : 0
+        ];
+        
+        // Optional fields that might not exist in older schemas
+        if (isset($_POST['display_name'])) $updateData['display_name'] = trim($_POST['display_name']);
+        if (isset($_POST['donation_message'])) $updateData['donation_message'] = trim($_POST['donation_message']);
+        if (isset($_POST['is_anonymous'])) $updateData['is_anonymous'] = isset($_POST['is_anonymous']) ? 1 : 0;
+        
+        try {
+            db()->update('donations', $updateData, 'id = ?', [$donationId]);
+            $success = 'Donation updated successfully!';
+        } catch (Exception $e) {
+            // Handle cases where some columns might be missing
+            unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+            try {
+                db()->update('donations', $updateData, 'id = ?', [$donationId]);
+                $success = 'Donation updated successfully (basic info only)!';
+            } catch (Exception $e2) {
+                $error = 'Failed to update donation: ' . $e2->getMessage();
+            }
+        }
+
+        if (empty($error) && !empty($_POST['redirect_to'])) {
+            header('Location: ' . $_POST['redirect_to']);
+            exit;
+        }
+    }
+}
+
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
@@ -19,6 +124,11 @@ $dateFilter = $_GET['date_filter'] ?? '';
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
+$campaignFilter = $_GET['campaign'] ?? '';
+
+// Get all campaigns for filter dropdown
+require_once __DIR__ . '/../includes/campaigns.php';
+$allCampaigns = getAllCampaigns(true);
 
 // Build WHERE clause
 // Exclude deleted donations and anonymous pending donations (no name)
@@ -93,6 +203,14 @@ if ($statusFilter) {
     $params[] = $statusFilter;
 }
 
+// Campaign filter
+if ($campaignFilter === 'none') {
+    $where[] = "(campaign_id IS NULL OR campaign_id = 0)";
+} elseif ($campaignFilter !== '') {
+    $where[] = "campaign_id = ?";
+    $params[] = (int)$campaignFilter;
+}
+
 $whereClause = implode(' AND ', $where);
 
 // Get totals
@@ -116,7 +234,6 @@ $filteredTotal = db()->fetch(
 )['total'] ?? 0;
 
 $settings = getAllSettings();
-$csrfToken = generateCsrfToken();
 
 // Build query string for pagination
 $queryParams = $_GET;
@@ -129,7 +246,7 @@ $queryString = http_build_query($queryParams);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donations - Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
     <style>
         .filters-bar {
             background: #f8f9fa;
@@ -247,22 +364,7 @@ $queryString = http_build_query($queryParams);
 </head>
 <body>
     <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><?= h($settings['org_name'] ?? 'Donation Platform') ?></h2>
-                <span>Admin Panel</span>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="index.php">📊 Dashboard</a>
-                <a href="donations.php" class="active">💳 Donations</a>
-                <a href="settings.php">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php">🔗 CiviCRM</a>
-                <hr>
-                <a href="logout.php">🚪 Logout</a>
-            </nav>
-        </aside>
+        <?php $currentPage = 'donations'; include 'includes/sidebar.php'; ?>
         
         <main class="main-content">
             <header class="content-header">
@@ -270,6 +372,25 @@ $queryString = http_build_query($queryParams);
                 <p>View and filter donation transactions</p>
             </header>
             
+            <?php if (isset($_GET['success']) && $_GET['success'] === 'added'): ?>
+            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                ✓ Donation added successfully!
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($error)): ?>
+            <div class="alert alert-error" style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                <?= h($error) ?>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Add Donation Button -->
+            <div style="margin-bottom: 20px;">
+                <button onclick="document.getElementById('add-donation-modal').style.display='flex'" class="btn btn-primary">
+                    + Add Manual Donation
+                </button>
+            </div>
+
             <!-- Filters -->
             <section class="card filters-bar">
                 <form method="GET" action="">
@@ -326,9 +447,21 @@ $queryString = http_build_query($queryParams);
                             </select>
                         </div>
                         
+                        <!-- Campaign Filter -->
+                        <div class="filter-group">
+                            <label>Campaign</label>
+                            <select name="campaign">
+                                <option value="">All Donations</option>
+                                <option value="none" <?= $campaignFilter === 'none' ? 'selected' : '' ?>>No Campaign</option>
+                                <?php foreach ($allCampaigns as $c): ?>
+                                <option value="<?= $c['id'] ?>" <?= $campaignFilter == $c['id'] ? 'selected' : '' ?>><?= h($c['title']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
                         <div class="filter-actions">
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
-                            <?php if ($amountFilter || $dateFilter || $statusFilter): ?>
+                            <?php if ($amountFilter || $dateFilter || $statusFilter || $campaignFilter): ?>
                             <a href="donations.php" class="clear-filters">Clear All</a>
                             <?php endif; ?>
                         </div>
@@ -358,6 +491,7 @@ $queryString = http_build_query($queryParams);
                             <th>Donor</th>
                             <th>Email</th>
                             <th>Amount</th>
+                            <th>Campaign</th>
                             <th>Type</th>
                             <th>Method</th>
                             <th>Status</th>
@@ -366,15 +500,15 @@ $queryString = http_build_query($queryParams);
                     </thead>
                     <tbody>
                         <?php if (empty($donations)): ?>
-                            <tr><td colspan="9" class="empty">No donations match your filters</td></tr>
+                            <tr><td colspan="10" class="empty">No donations match your filters</td></tr>
                         <?php else: ?>
                             <?php foreach ($donations as $d): ?>
                             <tr id="donation-<?= $d['id'] ?>">
                                 <td>#<?= $d['id'] ?></td>
                                 <td><?= date('M j, Y g:ia', strtotime($d['created_at'])) ?></td>
                                 <td>
-                                    <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="donor-link">
+                                    <?php if ($d['donor_id']): ?>
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_name'] ?: 'Anonymous') ?>
                                         </a>
                                     <?php else: ?>
@@ -382,8 +516,8 @@ $queryString = http_build_query($queryParams);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="donor-link">
+                                    <?php if ($d['donor_id']): ?>
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="donor-link">
                                             <?= h($d['donor_email']) ?>
                                         </a>
                                     <?php else: ?>
@@ -391,6 +525,32 @@ $queryString = http_build_query($queryParams);
                                     <?php endif; ?>
                                 </td>
                                 <td><strong><?= formatCurrency($d['amount']) ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $donationCampaign = null;
+                                    if (!empty($d['campaign_id'])) {
+                                        foreach ($allCampaigns as $c) {
+                                            if ($c['id'] == $d['campaign_id']) {
+                                                $donationCampaign = $c;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <form method="POST" style="display:inline;" onchange="this.submit()">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                        <input type="hidden" name="action" value="assign_campaign">
+                                        <input type="hidden" name="donation_id" value="<?= $d['id'] ?>">
+                                        <select name="campaign_id" style="font-size:12px; padding:2px 4px;">
+                                            <option value="">-- None --</option>
+                                            <?php foreach ($allCampaigns as $c): ?>
+                                            <option value="<?= $c['id'] ?>" <?= ($d['campaign_id'] ?? 0) == $c['id'] ? 'selected' : '' ?>>
+                                                <?= h(substr($c['title'], 0, 20)) ?><?= strlen($c['title']) > 20 ? '...' : '' ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </form>
+                                </td>
                                 <td>
                                     <?= ucfirst($d['frequency']) ?>
                                     <?php if ($d['frequency'] === 'monthly'): ?>
@@ -401,11 +561,15 @@ $queryString = http_build_query($queryParams);
                                 <td><span class="status-<?= $d['status'] ?>"><?= ucfirst($d['status']) ?></span></td>
                                 <td>
                                     <div class="action-btns">
-                                        <?php if ($d['donor_email']): ?>
-                                        <a href="donor.php?email=<?= urlencode($d['donor_email']) ?>" class="btn btn-xs btn-info">
+                                        <?php if ($d['donor_id']): ?>
+                                        <a href="donor/<?= $d['donor_id'] ?>" class="btn btn-xs btn-info">
                                             View
                                         </a>
                                         <?php endif; ?>
+                                        
+                                        <button class="btn btn-xs btn-primary" onclick="editDonation(<?= h(json_encode($d)) ?>)">
+                                            Edit
+                                        </button>
                                         <?php if ($d['status'] === 'completed' && $d['payment_method'] === 'stripe'): ?>
                                         <button class="btn btn-xs btn-warning" onclick="refundDonation(<?= $d['id'] ?>, '<?= h($d['transaction_id']) ?>')">
                                             Refund
@@ -439,8 +603,77 @@ $queryString = http_build_query($queryParams);
         </main>
     </div>
     
+    <!-- Edit Donation Modal -->
+    <div id="edit-donation-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:white; padding:30px; border-radius:16px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto;">
+            <h2>Edit Donation</h2>
+            <form method="POST" style="margin-top: 20px;">
+                <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                <input type="hidden" name="action" value="update_donation">
+                <input type="hidden" id="edit_donation_id" name="donation_id">
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_name">Donor Name *</label>
+                        <input type="text" id="edit_donor_name" name="donor_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_donor_email">Donor Email</label>
+                        <input type="email" id="edit_donor_email" name="donor_email">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_amount">Amount ($)</label>
+                        <input type="number" id="edit_amount" name="amount" step="0.01" min="1" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit_display_name">Display Name (Wall)</label>
+                        <input type="text" id="edit_display_name" name="display_name">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_donation_message">Wall Message</label>
+                    <textarea id="edit_donation_message" name="donation_message" rows="3"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 24px; margin-bottom: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_anonymous" name="is_anonymous">
+                        Make donation anonymous
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_matched" name="is_matched">
+                        <span style="color: #20a39e; font-weight: bold;">🔥 Matched Donation</span>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                    <button type="button" onclick="document.getElementById('edit-donation-modal').style.display='none'" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
         const csrfToken = '<?= $csrfToken ?>';
+        
+        function editDonation(donation) {
+            document.getElementById('edit_donation_id').value = donation.id;
+            document.getElementById('edit_donor_name').value = donation.donor_name || '';
+            document.getElementById('edit_donor_email').value = donation.donor_email || '';
+            document.getElementById('edit_amount').value = donation.amount;
+            document.getElementById('edit_display_name').value = donation.display_name || '';
+            document.getElementById('edit_donation_message').value = donation.donation_message || '';
+            document.getElementById('edit_is_anonymous').checked = donation.is_anonymous == 1;
+            document.getElementById('edit_is_matched').checked = donation.is_matched == 1;
+            
+            document.getElementById('edit-donation-modal').style.display = 'flex';
+        }
         
         function toggleAmountFields() {
             const filter = document.getElementById('amountFilter').value;
@@ -542,5 +775,74 @@ $queryString = http_build_query($queryParams);
             }
         }
     </script>
+    
+    <!-- Add Manual Donation Modal -->
+    <div id="add-donation-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:12px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0;">Add Manual Donation</h2>
+                <button onclick="document.getElementById('add-donation-modal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                <input type="hidden" name="action" value="add_manual_donation">
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Donor Name *</label>
+                    <input type="text" name="donor_name" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Email</label>
+                    <input type="email" name="donor_email" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Display Name (shown publicly)</label>
+                    <input type="text" name="display_name" placeholder="Leave blank to use donor name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Amount *</label>
+                    <input type="number" name="amount" min="1" step="1" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Campaign</label>
+                    <select name="campaign_id" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- No Campaign --</option>
+                        <?php foreach ($allCampaigns as $c): ?>
+                        <option value="<?= $c['id'] ?>"><?= h($c['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; margin-bottom:6px; font-weight:600;">Message / Dedication</label>
+                    <textarea name="donation_message" rows="2" placeholder="Optional message" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></textarea>
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" name="is_anonymous">
+                        Mark as anonymous (hide name from public)
+                    </label>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" name="is_matched">
+                        Mark as matched donation
+                    </label>
+                </div>
+                
+                <div style="display:flex; gap:12px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Add Donation</button>
+                    <button type="button" onclick="document.getElementById('add-donation-modal').style.display='none'" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

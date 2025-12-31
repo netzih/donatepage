@@ -102,8 +102,17 @@ function cleanupRateLimits($olderThanSeconds = 3600) {
  * Call this at the start of every page
  */
 function setSecurityHeaders() {
+    $isEmbed = isset($_GET['embed']) || (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'embed=') !== false);
+    
+    // Check if we are on HTTPS
+    $isSecure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') || 
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
     // Prevent clickjacking
-    header('X-Frame-Options: SAMEORIGIN');
+    // If embedding is requested, we allow it by not sending SAMEORIGIN
+    if (!$isEmbed) {
+        header('X-Frame-Options: SAMEORIGIN');
+    }
     
     // Prevent MIME type sniffing
     header('X-Content-Type-Options: nosniff');
@@ -114,18 +123,26 @@ function setSecurityHeaders() {
     // Referrer policy
     header('Referrer-Policy: strict-origin-when-cross-origin');
     
-    // Permissions policy (formerly Feature-Policy)
-    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    // Permissions policy (allow payments)
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(self "https://js.stripe.com" "https://www.paypal.com" "https://js.payarc.net")');
     
     // Content Security Policy (adjust as needed)
-    // Note: Stripe requires certain sources
+    // Note: Stripe and PayArc require certain sources
     $csp = "default-src 'self'; ";
-    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com; ";
-    $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ";
+    $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com https://cdnjs.cloudflare.com https://unpkg.com https://js.payarc.net; ";
+    $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; ";
     $csp .= "font-src 'self' https://fonts.gstatic.com; ";
     $csp .= "img-src 'self' data: https:; ";
-    $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com; ";
-    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com;";
+    $csp .= "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.paypal.com https://js.payarc.net; ";
+    $csp .= "connect-src 'self' https://api.stripe.com https://www.paypal.com https://api.payarc.net https://testapi.payarc.net; ";
+    
+    // Allow iframing from any site if embed parameter is present
+    if ($isEmbed) {
+        $csp .= "frame-ancestors 'self' *; ";
+    } else {
+        $csp .= "frame-ancestors 'self'; ";
+    }
+    
     header("Content-Security-Policy: $csp");
     
     // HSTS (only if on HTTPS)

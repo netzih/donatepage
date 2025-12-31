@@ -4,9 +4,9 @@
  * Handles both one-time payments and subscription creation
  */
 
+require_once __DIR__ . '/../includes/functions.php';
 session_start();
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
 require_once __DIR__ . '/../includes/civicrm.php';
 
@@ -23,6 +23,9 @@ $mode = $input['mode'] ?? 'payment';
 $intentId = $input['intent_id'] ?? $input['payment_intent_id'] ?? '';
 $donorName = trim($input['donor_name'] ?? '');
 $donorEmail = trim($input['donor_email'] ?? '');
+$displayName = trim($input['display_name'] ?? '');
+$donationMessage = trim($input['donation_message'] ?? '');
+$isAnonymous = !empty($input['is_anonymous']) ? 1 : 0;
 $amount = (float)($input['amount'] ?? 0);
 
 if (empty($intentId)) {
@@ -111,17 +114,39 @@ try {
         );
         
         if ($donation) {
-            db()->update('donations', [
+            $updateData = [
                 'status' => 'completed',
                 'donor_name' => $donorName,
                 'donor_email' => $donorEmail,
+                'donor_id' => getOrCreateDonor($donorName, $donorEmail),
                 'transaction_id' => $subscription->id,
                 'metadata' => json_encode([
                     'subscription_id' => $subscription->id,
                     'customer_id' => $customer->id,
                     'type' => 'subscription'
                 ])
-            ], 'id = ?', [$donation['id']]);
+            ];
+            
+            // Add optional display fields (gracefully handle missing columns)
+            if ($displayName) $updateData['display_name'] = $displayName;
+            if ($donationMessage) $updateData['donation_message'] = $donationMessage;
+            $updateData['is_anonymous'] = $isAnonymous;
+            
+            // Check if donation should be matched
+            if ($donation['campaign_id']) {
+                $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                if ($campaign && $campaign['matching_enabled']) {
+                    $updateData['is_matched'] = 1;
+                }
+            }
+            
+            try {
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+            } catch (Exception $e) {
+                // If columns don't exist, update without them
+                unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+            }
             
             // Refresh donation data
             $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
@@ -162,11 +187,33 @@ try {
             jsonResponse(['error' => 'Donation record not found'], 404);
         }
         
-        db()->update('donations', [
+        $updateData = [
             'status' => 'completed',
             'donor_name' => $donorName,
-            'donor_email' => $donorEmail
-        ], 'id = ?', [$donation['id']]);
+            'donor_email' => $donorEmail,
+            'donor_id' => getOrCreateDonor($donorName, $donorEmail)
+        ];
+        
+        // Add optional display fields (gracefully handle missing columns)
+        if ($displayName) $updateData['display_name'] = $displayName;
+        if ($donationMessage) $updateData['donation_message'] = $donationMessage;
+        $updateData['is_anonymous'] = $isAnonymous;
+        
+        // Check if donation should be matched
+        if ($donation['campaign_id']) {
+            $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+            if ($campaign && $campaign['matching_enabled']) {
+                $updateData['is_matched'] = 1;
+            }
+        }
+        
+        try {
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+        } catch (Exception $e) {
+            // If columns don't exist, update without them
+            unset($updateData['display_name'], $updateData['donation_message'], $updateData['is_anonymous']);
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+        }
         
         // Refresh donation data
         $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);

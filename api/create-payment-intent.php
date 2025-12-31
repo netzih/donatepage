@@ -4,9 +4,9 @@
  * Creates PaymentIntent for one-time or SetupIntent + Subscription for monthly
  */
 
+require_once __DIR__ . '/../includes/functions.php';
 session_start();
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json');
 
@@ -18,12 +18,22 @@ if (!$input) {
 }
 
 // Validate CSRF
-if (!verifyCsrfToken($input['csrf_token'] ?? '')) {
-    jsonResponse(['error' => 'Invalid request token'], 403);
+$providedToken = $input['csrf_token'] ?? '';
+$storedToken = $_SESSION['csrf_token'] ?? '';
+$isMatch = verifyCsrfToken($providedToken);
+
+if (!$isMatch) {
+    error_log("CSRF Failure in iframe context:");
+    error_log("- Session ID: " . session_id());
+    error_log("- Provided Token: " . substr($providedToken, 0, 8) . "...");
+    error_log("- Stored Token: " . ($storedToken ? substr($storedToken, 0, 8) . "..." : "EMPTY"));
+    error_log("- Session State: " . json_encode($_SESSION));
+    jsonResponse(['error' => 'Invalid request token (Session/CSRF error)'], 403);
 }
 
 $amount = (float)($input['amount'] ?? 0);
 $frequency = $input['frequency'] ?? 'once';
+$campaignId = isset($input['campaign_id']) ? (int)$input['campaign_id'] : null;
 
 if ($amount < 1) {
     jsonResponse(['error' => 'Invalid amount'], 400);
@@ -55,7 +65,7 @@ try {
         ]);
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => 'monthly',
             'payment_method' => 'stripe',
@@ -63,9 +73,25 @@ try {
             'status' => 'pending',
             'metadata' => json_encode([
                 'setup_intent_id' => $setupIntent->id,
-                'type' => 'subscription'
+                'type' => 'subscription',
+                'campaign_id' => $campaignId
             ])
-        ]);
+        ];
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
+        }
         
         jsonResponse([
             'clientSecret' => $setupIntent->client_secret,
@@ -90,7 +116,7 @@ try {
         ]);
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => 'once',
             'payment_method' => 'stripe',
@@ -98,9 +124,25 @@ try {
             'status' => 'pending',
             'metadata' => json_encode([
                 'payment_intent_id' => $paymentIntent->id,
-                'type' => 'payment'
+                'type' => 'payment',
+                'campaign_id' => $campaignId
             ])
-        ]);
+        ];
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
+        }
         
         jsonResponse([
             'clientSecret' => $paymentIntent->client_secret,

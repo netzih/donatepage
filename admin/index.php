@@ -24,26 +24,11 @@ $orgName = getSetting('org_name', 'Donation Platform');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - <?= h($orgName) ?> Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
 </head>
 <body>
     <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><?= h($orgName) ?></h2>
-                <span>Admin Panel</span>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="index.php" class="active">📊 Dashboard</a>
-                <a href="donations.php">💳 Donations</a>
-                <a href="settings.php">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php">🔗 CiviCRM</a>
-                <hr>
-                <a href="logout.php">🚪 Logout</a>
-            </nav>
-        </aside>
+        <?php $currentPage = 'dashboard'; include 'includes/sidebar.php'; ?>
         
         <main class="main-content">
             <header class="content-header">

@@ -4,8 +4,9 @@
  * Handles order creation and capture
  */
 
-session_start();
 require_once __DIR__ . '/../includes/functions.php';
+session_start();
+require_once __DIR__ . '/../vendor/autoload.php';
 
 header('Content-Type: application/json');
 
@@ -17,8 +18,17 @@ if (!$input) {
 }
 
 // Validate CSRF
-if (!verifyCsrfToken($input['csrf_token'] ?? '')) {
-    jsonResponse(['error' => 'Invalid request token'], 403);
+$providedToken = $input['csrf_token'] ?? '';
+$storedToken = $_SESSION['csrf_token'] ?? '';
+$isMatch = verifyCsrfToken($providedToken);
+
+if (!$isMatch) {
+    error_log("PayPal CSRF Failure in iframe context:");
+    error_log("- Session ID: " . session_id());
+    error_log("- Provided Token: " . substr($providedToken, 0, 8) . "...");
+    error_log("- Stored Token: " . ($storedToken ? substr($storedToken, 0, 8) . "..." : "EMPTY"));
+    error_log("- Referer: " . ($_SERVER['HTTP_REFERER'] ?? 'NONE'));
+    jsonResponse(['error' => 'Invalid request token (Session/CSRF error)'], 403);
 }
 
 $action = $input['action'] ?? '';
@@ -69,6 +79,7 @@ try {
         // Create PayPal order
         $amount = (float)($input['amount'] ?? 0);
         $frequency = $input['frequency'] ?? 'once';
+        $campaignId = isset($input['campaign_id']) ? (int)$input['campaign_id'] : null;
         
         if ($amount < 1) {
             jsonResponse(['error' => 'Invalid amount'], 400);
@@ -109,14 +120,30 @@ try {
         }
         
         // Store pending donation
-        $donationId = db()->insert('donations', [
+        $donationData = [
             'amount' => $amount,
             'frequency' => $frequency,
             'payment_method' => 'paypal',
             'transaction_id' => $order['id'],
             'status' => 'pending',
-            'metadata' => json_encode(['paypal_order_id' => $order['id']])
-        ]);
+            'metadata' => json_encode(['paypal_order_id' => $order['id'], 'campaign_id' => $campaignId])
+        ];
+        
+        // Try to add campaign_id if column exists
+        try {
+            if ($campaignId) {
+                $donationData['campaign_id'] = $campaignId;
+            }
+            $donationId = db()->insert('donations', $donationData);
+        } catch (Exception $e) {
+            // If failed due to campaign_id column, retry without it
+            if (strpos($e->getMessage(), 'campaign_id') !== false) {
+                unset($donationData['campaign_id']);
+                $donationId = db()->insert('donations', $donationData);
+            } else {
+                throw $e;
+            }
+        }
         
         // Store donation ID in session for later
         $_SESSION['pending_paypal_donation'] = $donationId;
@@ -165,12 +192,22 @@ try {
         $donation = db()->fetch("SELECT * FROM donations WHERE transaction_id = ?", [$orderId]);
         
         if ($donation) {
-            db()->update('donations', [
+            $updateData = [
                 'status' => 'completed',
                 'donor_name' => $payerName,
                 'donor_email' => $payerEmail,
                 'transaction_id' => $captureId ?: $orderId
-            ], 'id = ?', [$donation['id']]);
+            ];
+            
+            // Check if donation should be matched
+            if (!empty($donation['campaign_id'])) {
+                $campaign = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                if ($campaign && $campaign['matching_enabled']) {
+                    $updateData['is_matched'] = 1;
+                }
+            }
+            
+            db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
             
             // Send emails
             require_once __DIR__ . '/../includes/mail.php';

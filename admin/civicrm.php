@@ -48,7 +48,7 @@ $csrfToken = generateCsrfToken();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CiviCRM Integration - Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="/admin/admin-style.css">
     <style>
         .toggle-switch {
             display: flex;
@@ -151,22 +151,7 @@ $csrfToken = generateCsrfToken();
 </head>
 <body>
     <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><?= h($settings['org_name'] ?? 'Donation Platform') ?></h2>
-                <span>Admin Panel</span>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="index.php">📊 Dashboard</a>
-                <a href="donations.php">💳 Donations</a>
-                <a href="settings.php">⚙️ Settings</a>
-                <a href="payments.php">💰 Payment Gateways</a>
-                <a href="emails.php">📧 Email Templates</a>
-                <a href="civicrm.php" class="active">🔗 CiviCRM</a>
-                <hr>
-                <a href="logout.php">🚪 Logout</a>
-            </nav>
-        </aside>
+        <?php $currentPage = 'civicrm'; include 'includes/sidebar.php'; ?>
         
         <main class="main-content">
             <header class="content-header">

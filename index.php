@@ -3,8 +3,8 @@
  * Public Donation Page
  */
 
-session_start();
 require_once __DIR__ . '/includes/functions.php';
+session_start();
 
 $settings = getAllSettings();
 $presetAmounts = getPresetAmounts();
@@ -12,19 +12,25 @@ $stripePk = $settings['stripe_pk'] ?? '';
 $paypalClientId = $settings['paypal_client_id'] ?? '';
 $paypalMode = $settings['paypal_mode'] ?? 'sandbox';
 
+// PayArc settings
+$payarcEnabled = ($settings['payarc_enabled'] ?? '0') === '1' && !empty($settings['payarc_bearer_token']);
+
 $orgName = $settings['org_name'] ?? 'Organization';
 $tagline = $settings['tagline'] ?? 'Help Us Make a Difference';
 $logoPath = $settings['logo_path'] ?? '';
 $bgPath = $settings['background_path'] ?? '';
 $currencySymbol = $settings['currency_symbol'] ?? '$';
 
-// Generate CSRF token for API calls
-$csrfToken = generateCsrfToken();
-
 // Check for embed mode (for iframe usage)
-// embed=1: Minimal (white background, no header/footer)
-// embed=2: Styled (keeps background, removes navbar/footer)
 $embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
+
+// Generate CSRF token for API calls
+// For embeds, we use a signed sessionless token to avoid 3rd-party cookie issues
+if ($embedMode > 0) {
+    $csrfToken = generateSignedToken();
+} else {
+    $csrfToken = generateCsrfToken();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,7 +56,7 @@ $embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=2">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
 <body class="<?= $embedMode === 1 ? 'embed-mode embed-minimal' : ($embedMode === 2 ? 'embed-mode embed-styled' : '') ?>">
     <div class="page-wrapper" style="<?= $bgPath && $embedMode !== 1 ? 'background-image: url(' . h($bgPath) . ')' : '' ?>">
@@ -120,7 +126,35 @@ $embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
                             <input type="email" id="donor-email" placeholder="john@example.com" required>
                         </div>
                         
+                        <?php if ($payarcEnabled): ?>
+                        <!-- PayArc native card inputs -->
+                        <div id="payarc-card-form" class="payarc-form">
+                            <div class="form-group">
+                                <label for="card-number">Card Number</label>
+                                <input type="text" id="card-number" placeholder="1234 5678 9012 3456" 
+                                       maxlength="19" autocomplete="cc-number" inputmode="numeric">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group half">
+                                    <label for="card-expiry">Expiry</label>
+                                    <input type="text" id="card-expiry" placeholder="MM/YY" 
+                                           maxlength="5" autocomplete="cc-exp" inputmode="numeric">
+                                </div>
+                                <div class="form-group half">
+                                    <label for="card-cvv">CVV</label>
+                                    <input type="text" id="card-cvv" placeholder="123" 
+                                           maxlength="4" autocomplete="cc-csc" inputmode="numeric">
+                                </div>
+                            </div>
+                        </div>
+                        
                         <?php if ($stripePk): ?>
+                        <!-- Express checkout for Apple Pay / Google Pay via Stripe -->
+                        <div id="express-checkout-element" class="express-checkout" style="margin: 16px 0;"></div>
+                        <?php endif; ?>
+                        
+                        <?php elseif ($stripePk): ?>
+                        <!-- Stripe Payment Element fallback -->
                         <div class="form-group">
                             <label>Card Details</label>
                             <div id="payment-element"></div>
@@ -183,10 +217,26 @@ $embedMode = isset($_GET['embed']) ? (int)$_GET['embed'] : 0;
         const CONFIG = {
             stripeKey: '<?= h($stripePk) ?>',
             paypalClientId: '<?= h($paypalClientId) ?>',
+            payarcEnabled: <?= $payarcEnabled ? 'true' : 'false' ?>,
             csrfToken: '<?= h($csrfToken) ?>',
             currencySymbol: '<?= h($currencySymbol) ?>'
         };
     </script>
-    <script src="assets/js/donate.js?v=3"></script>
+    <script src="assets/js/donate.js?v=<?= filemtime(__DIR__ . '/assets/js/donate.js') ?>"></script>
+    <script>
+        // If in iframe, report height to parent
+        if (window.self !== window.top) {
+            const sendHeight = () => {
+                window.parent.postMessage({
+                    type: 'resize',
+                    height: document.body.scrollHeight
+                }, '*');
+            };
+            window.addEventListener('load', sendHeight);
+            if (window.ResizeObserver) {
+                new ResizeObserver(sendHeight).observe(document.body);
+            }
+        }
+    </script>
 </body>
 </html>
