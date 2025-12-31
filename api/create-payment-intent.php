@@ -35,6 +35,13 @@ $amount = (float)($input['amount'] ?? 0);
 $frequency = $input['frequency'] ?? 'once';
 $campaignId = isset($input['campaign_id']) ? (int)$input['campaign_id'] : null;
 
+// Donor details (optional, for Express Checkout which collects them before creating intent)
+$donorName = trim($input['donor_name'] ?? '');
+$donorEmail = trim($input['donor_email'] ?? '');
+$displayName = trim($input['display_name'] ?? '');
+$donationMessage = trim($input['donation_message'] ?? '');
+$isAnonymous = !empty($input['is_anonymous']) ? 1 : 0;
+
 if ($amount < 1) {
     jsonResponse(['error' => 'Invalid amount'], 400);
 }
@@ -77,6 +84,13 @@ try {
                 'campaign_id' => $campaignId
             ])
         ];
+        
+        // Add donor details if provided (for Express Checkout)
+        if ($donorName) $donationData['donor_name'] = $donorName;
+        if ($donorEmail) $donationData['donor_email'] = $donorEmail;
+        if ($displayName) $donationData['display_name'] = $displayName;
+        if ($donationMessage) $donationData['donation_message'] = $donationMessage;
+        if ($isAnonymous) $donationData['is_anonymous'] = $isAnonymous;
         
         // Try to add campaign_id if column exists
         try {
@@ -128,6 +142,13 @@ try {
                 'campaign_id' => $campaignId
             ])
         ];
+        
+        // Add donor details if provided (for Express Checkout)
+        if ($donorName) $donationData['donor_name'] = $donorName;
+        if ($donorEmail) $donationData['donor_email'] = $donorEmail;
+        if ($displayName) $donationData['display_name'] = $displayName;
+        if ($donationMessage) $donationData['donation_message'] = $donationMessage;
+        if ($isAnonymous) $donationData['is_anonymous'] = $isAnonymous;
         
         // Try to add campaign_id if column exists
         try {

@@ -148,8 +148,50 @@ document.addEventListener('DOMContentLoaded', () => {
                             const expressCheckoutElement = expressElements.create('expressCheckout');
                             expressCheckoutElement.mount('#express-checkout-element');
 
+                            // Validate donor details on click before payment sheet opens
+                            expressCheckoutElement.on('click', (event) => {
+                                const name = donorName ? donorName.value.trim() : '';
+                                const email = donorEmail ? donorEmail.value.trim() : '';
+
+                                if (!name) {
+                                    event.resolve({ applePay: { recurringPaymentRequest: null } }); // Cancel
+                                    showMessage('Please enter your name before using Apple Pay or Google Pay', 'error');
+                                    if (donorName) donorName.focus();
+                                    return;
+                                }
+
+                                if (!email || !isValidEmail(email)) {
+                                    event.resolve({ applePay: { recurringPaymentRequest: null } }); // Cancel
+                                    showMessage('Please enter a valid email before using Apple Pay or Google Pay', 'error');
+                                    if (donorEmail) donorEmail.focus();
+                                    return;
+                                }
+
+                                // Clear any previous error message
+                                paymentMessage.style.display = 'none';
+
+                                // Allow the payment sheet to open
+                                event.resolve();
+                            });
+
                             // Handle express checkout confirmation
                             expressCheckoutElement.on('confirm', async (event) => {
+                                // Update donation record with donor details before confirming
+                                try {
+                                    await fetch('api/update-donation.php', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            donation_id: intentData.donationId,
+                                            donor_name: donorName ? donorName.value.trim() : '',
+                                            donor_email: donorEmail ? donorEmail.value.trim() : '',
+                                            csrf_token: CONFIG.csrfToken
+                                        })
+                                    });
+                                } catch (updateError) {
+                                    console.log('Could not update donor details:', updateError.message);
+                                }
+
                                 const { error } = await stripe.confirmPayment({
                                     elements: expressElements,
                                     clientSecret: intentData.clientSecret,
