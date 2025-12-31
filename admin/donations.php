@@ -152,6 +152,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Failed to link donors: ' . $e->getMessage();
         }
     }
+    
+    // Bulk delete
+    if ($action === 'bulk_delete') {
+        $ids = $_POST['donation_ids'] ?? [];
+        if (!empty($ids) && is_array($ids)) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            try {
+                db()->execute("UPDATE donations SET status = 'deleted' WHERE id IN ($placeholders)", array_map('intval', $ids));
+                header('Location: /admin/donations?success=bulk_deleted&count=' . count($ids));
+                exit;
+            } catch (Exception $e) {
+                $error = 'Bulk delete failed: ' . $e->getMessage();
+            }
+        }
+    }
+    
+    // Bulk assign to campaign
+    if ($action === 'bulk_assign_campaign') {
+        $ids = $_POST['donation_ids'] ?? [];
+        $campaignId = $_POST['bulk_campaign_id'] ?? '';
+        if (!empty($ids) && is_array($ids)) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $params = array_map('intval', $ids);
+            try {
+                if ($campaignId === '') {
+                    db()->execute("UPDATE donations SET campaign_id = NULL WHERE id IN ($placeholders)", $params);
+                } else {
+                    array_unshift($params, (int)$campaignId);
+                    db()->execute("UPDATE donations SET campaign_id = ? WHERE id IN ($placeholders)", $params);
+                }
+                header('Location: /admin/donations?success=bulk_campaign&count=' . count($ids));
+                exit;
+            } catch (Exception $e) {
+                $error = 'Bulk campaign assign failed: ' . $e->getMessage();
+            }
+        }
+    }
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -420,6 +457,18 @@ $queryString = http_build_query($queryParams);
             </div>
             <?php endif; ?>
             
+            <?php if (isset($_GET['success']) && $_GET['success'] === 'bulk_deleted'): ?>
+            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                ✓ <?= (int)($_GET['count'] ?? 0) ?> donation(s) deleted successfully!
+            </div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['success']) && $_GET['success'] === 'bulk_campaign'): ?>
+            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                ✓ <?= (int)($_GET['count'] ?? 0) ?> donation(s) updated successfully!
+            </div>
+            <?php endif; ?>
+            
             <?php if (!empty($error)): ?>
             <div class="alert alert-error" style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
                 <?= h($error) ?>
@@ -544,10 +593,36 @@ $queryString = http_build_query($queryParams);
                 </div>
             </div>
             
+            <!-- Bulk Actions Bar (hidden until selections made) -->
+            <div id="bulk-actions-bar" style="display: none; background: #f0f8ff; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #b8daff;">
+                <form method="POST" id="bulk-form" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                    <input type="hidden" name="action" id="bulk-action-input" value="">
+                    <div id="bulk-donation-ids"></div>
+                    
+                    <span style="font-weight: 600;"><span id="selected-count">0</span> selected</span>
+                    
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="bulk-campaign-select" name="bulk_campaign_id" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px;">
+                            <option value="">-- No Campaign --</option>
+                            <?php foreach ($allCampaigns as $c): ?>
+                            <option value="<?= $c['id'] ?>"><?= h($c['title']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" onclick="bulkAssignCampaign()" class="btn btn-primary" style="padding: 6px 12px;">Assign to Campaign</button>
+                    </div>
+                    
+                    <button type="button" onclick="bulkDelete()" class="btn btn-danger" style="padding: 6px 12px;">Delete Selected</button>
+                    
+                    <button type="button" onclick="clearSelection()" style="background: none; border: none; color: #666; cursor: pointer;">Clear Selection</button>
+                </form>
+            </div>
+            
             <section class="card">
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
                             <th>ID</th>
                             <th>Date</th>
                             <th>Donor</th>
@@ -562,10 +637,11 @@ $queryString = http_build_query($queryParams);
                     </thead>
                     <tbody>
                         <?php if (empty($donations)): ?>
-                            <tr><td colspan="10" class="empty">No donations match your filters</td></tr>
+                            <tr><td colspan="11" class="empty">No donations match your filters</td></tr>
                         <?php else: ?>
                             <?php foreach ($donations as $d): ?>
-                            <tr id="donation-<?= $d['id'] ?>">
+                            <tr id="donation-<?= $d['id'] ?>" class="donation-row">
+                                <td><input type="checkbox" class="donation-checkbox" value="<?= $d['id'] ?>" onchange="updateBulkActions()"></td>
                                 <td>#<?= $d['id'] ?></td>
                                 <td><?= date('M j, Y g:ia', strtotime($d['created_at'])) ?></td>
                                 <td>
@@ -835,6 +911,78 @@ $queryString = http_build_query($queryParams);
             } catch (err) {
                 alert('Failed to delete donation');
             }
+        }
+        
+        // Bulk actions
+        function getSelectedIds() {
+            return Array.from(document.querySelectorAll('.donation-checkbox:checked')).map(cb => cb.value);
+        }
+        
+        function updateBulkActions() {
+            const selectedIds = getSelectedIds();
+            const bar = document.getElementById('bulk-actions-bar');
+            const countEl = document.getElementById('selected-count');
+            const idsContainer = document.getElementById('bulk-donation-ids');
+            
+            if (selectedIds.length > 0) {
+                bar.style.display = 'flex';
+                countEl.textContent = selectedIds.length;
+                // Clear and add hidden inputs for IDs
+                idsContainer.innerHTML = selectedIds.map(id => 
+                    `<input type="hidden" name="donation_ids[]" value="${id}">`
+                ).join('');
+            } else {
+                bar.style.display = 'none';
+            }
+            
+            // Update select-all checkbox state
+            const allCheckboxes = document.querySelectorAll('.donation-checkbox');
+            const selectAll = document.getElementById('select-all');
+            if (allCheckboxes.length > 0) {
+                selectAll.checked = selectedIds.length === allCheckboxes.length;
+                selectAll.indeterminate = selectedIds.length > 0 && selectedIds.length < allCheckboxes.length;
+            }
+        }
+        
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.donation-checkbox').forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateBulkActions();
+        }
+        
+        function clearSelection() {
+            document.querySelectorAll('.donation-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('select-all').checked = false;
+            updateBulkActions();
+        }
+        
+        function bulkDelete() {
+            const count = getSelectedIds().length;
+            if (count === 0) {
+                alert('Please select donations first');
+                return;
+            }
+            if (!confirm(`Are you sure you want to delete ${count} donation(s)?`)) {
+                return;
+            }
+            document.getElementById('bulk-action-input').value = 'bulk_delete';
+            document.getElementById('bulk-form').submit();
+        }
+        
+        function bulkAssignCampaign() {
+            const count = getSelectedIds().length;
+            if (count === 0) {
+                alert('Please select donations first');
+                return;
+            }
+            const campaignSelect = document.getElementById('bulk-campaign-select');
+            const campaignName = campaignSelect.options[campaignSelect.selectedIndex].text;
+            if (!confirm(`Assign ${count} donation(s) to "${campaignName}"?`)) {
+                return;
+            }
+            document.getElementById('bulk-action-input').value = 'bulk_assign_campaign';
+            document.getElementById('bulk-form').submit();
         }
     </script>
     
