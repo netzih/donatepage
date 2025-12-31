@@ -15,6 +15,10 @@ define('DB_PASS', 'YOUR_DATABASE_PASSWORD');  // The password you set
 // Application URL (no trailing slash)
 define('APP_URL', 'https://halochos.jewish-richmond.com');
 
+// Base path for subdirectory deployment (e.g., '/light' or '' for root)
+// This affects all asset URLs, links, and redirects
+define('BASE_PATH', '');
+
 // Session configuration
 define('SESSION_NAME', 'donate_session');
 define('SESSION_LIFETIME', 3600); // 1 hour

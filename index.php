@@ -67,7 +67,7 @@ if ($embedMode > 0) {
         <?php if ($embedMode === 0): ?>
             <nav class="navbar">
             <div class="nav-container">
-                <a href="/" class="logo">
+                <a href="<?= BASE_PATH ?>/" class="logo">
                     <?php if ($logoPath): ?>
                         <img src="<?= h($logoPath) ?>" alt="<?= h($orgName) ?>">
                     <?php else: ?>
@@ -215,6 +215,7 @@ if ($embedMode > 0) {
     
     <script>
         const CONFIG = {
+            basePath: '<?= BASE_PATH ?>',
             stripeKey: '<?= h($stripePk) ?>',
             paypalClientId: '<?= h($paypalClientId) ?>',
             payarcEnabled: <?= $payarcEnabled ? 'true' : 'false' ?>,

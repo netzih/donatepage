@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let paymentElement = null;
     let clientSecret = null;
     let donationId = null;
-    let paymentMode = 'payment'; // 'payment' or 'subscription'
+    let paymentMode = 'payment'; // 'payment' or 'subscription'\n    \n    // Config values\n    const basePath = CONFIG.basePath || '';
 
     // Elements
     const amountBtns = document.querySelectorAll('.amount-btn');
@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     elements: expressElements,
                                     clientSecret: intentData.clientSecret,
                                     confirmParams: {
-                                        return_url: window.location.origin + '/success.php'
+                                        return_url: window.location.origin + basePath + '/success.php'
                                     }
                                 });
                                 if (error) {
@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
             result = await stripe.confirmSetup({
                 elements,
                 confirmParams: {
-                    return_url: window.location.origin + '/success.php'
+                    return_url: window.location.origin + basePath + '/success.php'
                 },
                 redirect: 'if_required'
             });
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
             result = await stripe.confirmPayment({
                 elements,
                 confirmParams: {
-                    return_url: window.location.origin + '/success.php',
+                    return_url: window.location.origin + basePath + '/success.php',
                     receipt_email: donorEmail.value.trim()
                 },
                 redirect: 'if_required'
