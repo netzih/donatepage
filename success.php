@@ -67,6 +67,88 @@ if (!empty($_GET['session_id'])) {
     }
 }
 
+// Handle Stripe PaymentIntent redirect (Express Checkout - Apple Pay/Google Pay)
+if (!empty($_GET['payment_intent'])) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    
+    $stripeSecretKey = getSetting('stripe_sk');
+    if ($stripeSecretKey) {
+        try {
+            \Stripe\Stripe::setApiKey($stripeSecretKey);
+            $paymentIntent = \Stripe\PaymentIntent::retrieve($_GET['payment_intent']);
+            
+            // Find donation by PaymentIntent ID
+            $donation = db()->fetch(
+                "SELECT * FROM donations WHERE transaction_id = ?",
+                [$_GET['payment_intent']]
+            );
+            
+            if ($donation && $donation['status'] === 'pending' && $paymentIntent->status === 'succeeded') {
+                // Extract customer details from PaymentIntent
+                $customerName = '';
+                $customerEmail = '';
+                
+                // Try to get details from PaymentIntent's latest charge
+                if (!empty($paymentIntent->latest_charge)) {
+                    $charge = \Stripe\Charge::retrieve($paymentIntent->latest_charge);
+                    if ($charge->billing_details) {
+                        $customerName = $charge->billing_details->name ?? '';
+                        $customerEmail = $charge->billing_details->email ?? '';
+                    }
+                }
+                
+                // If no email from charge, try payment method
+                if (empty($customerEmail) && !empty($paymentIntent->payment_method)) {
+                    try {
+                        $pm = \Stripe\PaymentMethod::retrieve($paymentIntent->payment_method);
+                        $customerEmail = $pm->billing_details->email ?? '';
+                        if (empty($customerName)) {
+                            $customerName = $pm->billing_details->name ?? '';
+                        }
+                    } catch (Exception $e) {
+                        // Payment method may not be accessible
+                    }
+                }
+                
+                $updateData = [
+                    'status' => 'completed',
+                    'transaction_id' => $paymentIntent->id
+                ];
+                
+                if (!empty($customerName)) {
+                    $updateData['donor_name'] = $customerName;
+                }
+                if (!empty($customerEmail)) {
+                    $updateData['donor_email'] = $customerEmail;
+                }
+                
+                // Check if donation should be matched
+                if (!empty($donation['campaign_id'])) {
+                    $campaignInfo = db()->fetch("SELECT matching_enabled FROM campaigns WHERE id = ?", [$donation['campaign_id']]);
+                    if ($campaignInfo && $campaignInfo['matching_enabled']) {
+                        $updateData['is_matched'] = 1;
+                    }
+                }
+                
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+                
+                // Refresh donation data
+                $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
+                
+                // Send emails if we have an email
+                if (!empty($customerEmail)) {
+                    require_once __DIR__ . '/includes/mail.php';
+                    sendDonorReceipt($donation);
+                    sendAdminNotification($donation);
+                }
+            }
+        } catch (Exception $e) {
+            error_log("PaymentIntent success page error: " . $e->getMessage());
+            $error = true;
+        }
+    }
+}
+
 // Handle PayPal redirect
 if (!empty($_GET['id'])) {
     $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$_GET['id']]);
@@ -207,7 +289,11 @@ if ($donation && !empty($donation['campaign_id'])) {
         </p>
         <?php endif; ?>
         
+        <?php if ($campaign && !empty($campaign['slug'])): ?>
+        <a href="/campaign/<?= h($campaign['slug']) ?>" class="btn">Return to Campaign</a>
+        <?php else: ?>
         <a href="/" class="btn">Return Home</a>
+        <?php endif; ?>
     </div>
 </body>
 </html>
