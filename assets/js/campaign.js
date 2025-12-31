@@ -153,92 +153,101 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Initialize Express Checkout for Apple Pay/Google Pay if Stripe is available
                 const expressCheckoutContainer = document.getElementById('express-checkout-element');
                 if (stripe && expressCheckoutContainer) {
-                    try {
-                        // Create a PaymentIntent first to get the client secret
-                        const intentResponse = await fetch('/api/create-payment-intent.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                amount: selectedAmount,
-                                frequency: frequency,
-                                campaign_id: campaignId,
-                                csrf_token: CONFIG.csrfToken
-                            })
-                        });
-                        const intentData = await intentResponse.json();
+                    // Show placeholder until name/email are filled
+                    expressCheckoutContainer.innerHTML = '<div id="express-checkout-placeholder" style="text-align: center; padding: 12px; background: #f5f5f5; border-radius: 8px; color: #666; font-size: 13px;">Fill in your name and email above to enable Apple Pay / Google Pay</div>';
 
-                        if (intentData.clientSecret) {
-                            // Mount Express Checkout Element
-                            const expressElements = stripe.elements({
-                                clientSecret: intentData.clientSecret,
-                                appearance: { theme: 'stripe' }
-                            });
-                            const expressCheckoutElement = expressElements.create('expressCheckout');
-                            expressCheckoutElement.mount('#express-checkout-element');
+                    let expressCheckoutMounted = false;
+                    let expressElements = null;
+                    let expressCheckoutElement = null;
+                    let currentIntentData = null;
 
-                            // Validate donor details on click before payment sheet opens
-                            expressCheckoutElement.on('click', (event) => {
-                                const name = donorName ? donorName.value.trim() : '';
-                                const email = donorEmail ? donorEmail.value.trim() : '';
+                    // Function to check if we can mount Express Checkout
+                    const checkAndMountExpressCheckout = async () => {
+                        const name = donorName ? donorName.value.trim() : '';
+                        const email = donorEmail ? donorEmail.value.trim() : '';
 
-                                if (!name) {
-                                    event.resolve({ applePay: { recurringPaymentRequest: null } }); // Cancel
-                                    showMessage('Please enter your name before using Apple Pay or Google Pay', 'error');
-                                    if (donorName) donorName.focus();
-                                    return;
-                                }
+                        if (name && email && isValidEmail(email) && !expressCheckoutMounted) {
+                            // Remove placeholder
+                            const placeholder = document.getElementById('express-checkout-placeholder');
+                            if (placeholder) placeholder.remove();
 
-                                if (!email || !isValidEmail(email)) {
-                                    event.resolve({ applePay: { recurringPaymentRequest: null } }); // Cancel
-                                    showMessage('Please enter a valid email before using Apple Pay or Google Pay', 'error');
-                                    if (donorEmail) donorEmail.focus();
-                                    return;
-                                }
-
-                                // Clear any previous error message
-                                if (paymentMessage) paymentMessage.style.display = 'none';
-
-                                // Allow the payment sheet to open
-                                event.resolve();
-                            });
-
-                            // Handle express checkout confirmation
-                            expressCheckoutElement.on('confirm', async (event) => {
-                                // Update donation record with donor details before confirming
-                                try {
-                                    await fetch('/api/update-donation.php', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            donation_id: intentData.donationId,
-                                            donor_name: donorName ? donorName.value.trim() : '',
-                                            donor_email: donorEmail ? donorEmail.value.trim() : '',
-                                            display_name: displayName ? displayName.value.trim() : '',
-                                            donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
-                                            is_anonymous: isAnonymous ? isAnonymous.checked : false,
-                                            csrf_token: CONFIG.csrfToken
-                                        })
-                                    });
-                                } catch (updateError) {
-                                    console.log('Could not update donor details:', updateError.message);
-                                }
-
-                                const { error } = await stripe.confirmPayment({
-                                    elements: expressElements,
-                                    clientSecret: intentData.clientSecret,
-                                    confirmParams: {
-                                        return_url: window.location.origin + '/success.php'
-                                    }
+                            try {
+                                // Create a PaymentIntent with donor details
+                                const intentResponse = await fetch('/api/create-payment-intent.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        amount: selectedAmount,
+                                        frequency: frequency,
+                                        campaign_id: campaignId,
+                                        donor_name: name,
+                                        donor_email: email,
+                                        display_name: displayName ? displayName.value.trim() : '',
+                                        donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                                        is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                                        csrf_token: CONFIG.csrfToken
+                                    })
                                 });
-                                if (error) {
-                                    showMessage(error.message, 'error');
+                                currentIntentData = await intentResponse.json();
+
+                                if (currentIntentData.clientSecret) {
+                                    // Mount Express Checkout Element
+                                    expressElements = stripe.elements({
+                                        clientSecret: currentIntentData.clientSecret,
+                                        appearance: { theme: 'stripe' }
+                                    });
+                                    expressCheckoutElement = expressElements.create('expressCheckout');
+                                    expressCheckoutElement.mount('#express-checkout-element');
+                                    expressCheckoutMounted = true;
+
+                                    // Handle express checkout confirmation
+                                    expressCheckoutElement.on('confirm', async (event) => {
+                                        // Update donation record with latest donor details before confirming
+                                        try {
+                                            await fetch('/api/update-donation.php', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    donation_id: currentIntentData.donationId,
+                                                    donor_name: donorName ? donorName.value.trim() : '',
+                                                    donor_email: donorEmail ? donorEmail.value.trim() : '',
+                                                    display_name: displayName ? displayName.value.trim() : '',
+                                                    donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                                                    is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                                                    csrf_token: CONFIG.csrfToken
+                                                })
+                                            });
+                                        } catch (updateError) {
+                                            console.log('Could not update donor details:', updateError.message);
+                                        }
+
+                                        const { error } = await stripe.confirmPayment({
+                                            elements: expressElements,
+                                            clientSecret: currentIntentData.clientSecret,
+                                            confirmParams: {
+                                                return_url: window.location.origin + '/success.php'
+                                            }
+                                        });
+                                        if (error) {
+                                            showMessage(error.message, 'error');
+                                        }
+                                    });
                                 }
-                            });
+                            } catch (expressError) {
+                                console.log('Express checkout not available:', expressError.message);
+                                expressCheckoutContainer.style.display = 'none';
+                            }
                         }
-                    } catch (expressError) {
-                        console.log('Express checkout not available:', expressError.message);
-                        // Hide the container if express checkout fails
-                        expressCheckoutContainer.style.display = 'none';
+                    };
+
+                    // Listen for input changes on name and email fields
+                    if (donorName) {
+                        donorName.addEventListener('input', checkAndMountExpressCheckout);
+                        donorName.addEventListener('blur', checkAndMountExpressCheckout);
+                    }
+                    if (donorEmail) {
+                        donorEmail.addEventListener('input', checkAndMountExpressCheckout);
+                        donorEmail.addEventListener('blur', checkAndMountExpressCheckout);
                     }
                 }
             } else {
