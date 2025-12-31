@@ -45,7 +45,9 @@ if (empty($slug)) {
 // Calculate progress percentage
 $progressPercent = 0;
 if ($campaign && $campaign['goal_amount'] > 0) {
-    $progressPercent = min(100, round(($campaign['raised_amount'] / $campaign['goal_amount']) * 100));
+    $rawPercent = ($campaign['raised_amount'] / $campaign['goal_amount']) * 100;
+    // Show 1 decimal place until 1%, then round to whole numbers
+    $progressPercent = $rawPercent < 1 ? round($rawPercent, 1) : min(100, round($rawPercent));
 }
 
 // Check if campaign is active
