@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     elements: expressElements,
                                     clientSecret: intentData.clientSecret,
                                     confirmParams: {
-                                        return_url: window.location.origin + '/success.php?id=' + intentData.donationId
+                                        return_url: window.location.origin + '/success.php'
                                     }
                                 });
                                 if (error) {
