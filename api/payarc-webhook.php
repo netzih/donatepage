@@ -7,6 +7,17 @@
  * https://yourdomain.com/api/payarc-webhook.php
  */
 
+// Handle GET requests (browser visits) with a friendly message
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'ok',
+        'message' => 'PayArc webhook endpoint is active. This endpoint receives POST requests from PayArc.',
+        'timestamp' => date('c')
+    ]);
+    exit;
+}
+
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
 

@@ -4,6 +4,17 @@
  * Handles payment completion events
  */
 
+// Handle GET requests (browser visits) with a friendly message
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'ok',
+        'message' => 'Stripe webhook endpoint is active. This endpoint receives POST requests from Stripe.',
+        'timestamp' => date('c')
+    ]);
+    exit;
+}
+
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail.php';
