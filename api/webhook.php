@@ -76,9 +76,19 @@ try {
                 $amount = $invoice->amount_paid / 100;
                 $customerEmail = $invoice->customer_email ?? '';
                 $customerName = $invoice->customer_name ?? '';
+                $subscriptionId = $invoice->subscription;
+                
+                // Find the original donation to get campaign_id and matching status
+                $originalDonation = db()->fetch(
+                    "SELECT campaign_id, is_matched, display_name, donation_message, is_anonymous 
+                     FROM donations 
+                     WHERE transaction_id = ? OR transaction_id LIKE ? 
+                     ORDER BY created_at ASC LIMIT 1",
+                    [$subscriptionId, 'sub_%' . $subscriptionId . '%']
+                );
                 
                 // Create new donation record for recurring payment
-                $donationId = db()->insert('donations', [
+                $donationData = [
                     'amount' => $amount,
                     'frequency' => 'monthly',
                     'donor_name' => $customerName,
@@ -87,7 +97,28 @@ try {
                     'payment_method' => 'stripe',
                     'transaction_id' => $invoice->id,
                     'status' => 'completed'
-                ]);
+                ];
+                
+                // Copy campaign-related fields from original donation
+                if ($originalDonation) {
+                    if ($originalDonation['campaign_id']) {
+                        $donationData['campaign_id'] = $originalDonation['campaign_id'];
+                    }
+                    if ($originalDonation['is_matched']) {
+                        $donationData['is_matched'] = $originalDonation['is_matched'];
+                    }
+                    if ($originalDonation['display_name']) {
+                        $donationData['display_name'] = $originalDonation['display_name'];
+                    }
+                    if ($originalDonation['donation_message']) {
+                        $donationData['donation_message'] = $originalDonation['donation_message'];
+                    }
+                    if ($originalDonation['is_anonymous']) {
+                        $donationData['is_anonymous'] = $originalDonation['is_anonymous'];
+                    }
+                }
+                
+                $donationId = db()->insert('donations', $donationData);
                 
                 $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donationId]);
                 
