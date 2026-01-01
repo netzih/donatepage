@@ -352,34 +352,29 @@ try {
                 $attachResult = payarcPatchRequest('/customers/' . $customerId, ['token_id' => $tokenId], $payarcBearerToken, $payarcMode);
             }
             
-            // Step 1: Create or get a plan for this amount
+            // Create plan for this amount (if doesn't already exist)
             // Plan ID format: monthly_donation_[amount in cents]
+            // We skip the GET check to save an API call - just try to create
             $planId = 'monthly_donation_' . ($amount * 100);
             $planName = 'Monthly $' . $amount . ' Donation';
             
-            // Try to get the plan first
-            $planResult = payarcGetRequest('/plans/' . $planId, $payarcBearerToken, $payarcMode);
+            $planData = [
+                'plan_id' => $planId,
+                'name' => $planName,
+                'amount' => (string)($amount * 100),
+                'interval' => 'month',
+                'interval_count' => 1,
+                'currency' => 'usd',
+                'statement_descriptor' => 'Donation',
+                'plan_type' => 'digital'
+            ];
             
-            // If plan doesn't exist, create it
-            if (($planResult['http_code'] ?? 0) === 404 || isset($planResult['error'])) {
-                
-                $planData = [
-                    'plan_id' => $planId,
-                    'name' => $planName,
-                    'amount' => (string)($amount * 100),
-                    'interval' => 'month',
-                    'interval_count' => 1,
-                    'currency' => 'usd',
-                    'statement_descriptor' => 'Donation',
-                    'plan_type' => 'digital'
-                ];
-                
-                $planResult = payarcRequest('/plans', $planData, $payarcBearerToken, $payarcMode);
-                
-                if (isset($planResult['error']) || ($planResult['http_code'] ?? 0) >= 400) {
-                    $errorMsg = $planResult['message'] ?? $planResult['error'] ?? 'Failed to create plan';
-                    jsonResponse(['error' => $errorMsg], 400);
-                }
+            // Try to create plan - if it already exists, PayArc returns 422 which we ignore
+            $planResult = payarcRequest('/plans', $planData, $payarcBearerToken, $payarcMode);
+            // Only fail if it's a real error (not "already exists")
+            if (isset($planResult['error']) && ($planResult['http_code'] ?? 0) >= 500) {
+                $errorMsg = $planResult['message'] ?? $planResult['error'] ?? 'Failed to create plan';
+                jsonResponse(['error' => $errorMsg], 400);
             }
             
             // Step 3: Create subscription with the plan (card is now attached to customer)

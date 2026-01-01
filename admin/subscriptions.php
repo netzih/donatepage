@@ -64,6 +64,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             
             if ($subscriptionId && $customerId && $newAmount > 0 && $payarcBearerToken) {
                 try {
+                    // Get the existing subscription's next billing date from local DB
+                    $existingSub = db()->fetch(
+                        "SELECT next_billing_date FROM payarc_subscriptions WHERE id = ?",
+                        [$localId]
+                    );
+                    
+                    // Calculate days until next billing (to preserve billing date)
+                    $trialDays = 0;
+                    if ($existingSub && !empty($existingSub['next_billing_date'])) {
+                        $nextBilling = new DateTime($existingSub['next_billing_date']);
+                        $today = new DateTime();
+                        $diff = $today->diff($nextBilling);
+                        if ($diff->invert == 0 && $diff->days > 0) {
+                            // Next billing is in the future, use trial_days to delay first charge
+                            $trialDays = min($diff->days, 365); // PayArc max is 365
+                        }
+                    }
+                    
                     // Step 1: Cancel the existing subscription
                     $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId . '/cancel');
                     curl_setopt_array($ch, [
@@ -110,11 +128,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     curl_close($ch);
                     
                     // Step 3: Create new subscription with new plan
-                    $subData = json_encode([
+                    // Use trial_days to preserve the original billing date (no immediate charge)
+                    $subData = [
                         'customer_id' => $customerId,
                         'plan_id' => $planId,
-                        'statement_description' => 'Monthly Donation'
-                    ]);
+                        'description' => 'Monthly Donation'
+                    ];
+                    if ($trialDays > 0) {
+                        $subData['trial_days'] = $trialDays;
+                    }
+                    $subData = json_encode($subData);
                     
                     $ch = curl_init($baseUrl . '/subscriptions');
                     curl_setopt_array($ch, [
