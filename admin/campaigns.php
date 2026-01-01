@@ -7,7 +7,7 @@
 session_start();
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/campaigns.php';
-requireAdmin();
+requireRole(['admin', 'super_admin']);
 
 $settings = getAllSettings();
 $csrfToken = generateCsrfToken();

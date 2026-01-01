@@ -23,8 +23,11 @@ CREATE TABLE IF NOT EXISTS `admins` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `username` VARCHAR(100) NOT NULL UNIQUE,
     `password` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) DEFAULT NULL,
+    `role` VARCHAR(20) DEFAULT 'user',
     `totp_secret` VARCHAR(32) DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -----------------------------------------------------------------------------
@@ -161,8 +164,8 @@ ON DUPLICATE KEY UPDATE setting_key = setting_key;
 -- Password: admin123 (CHANGE THIS IMMEDIATELY!)
 -- Hash generated with: password_hash('admin123', PASSWORD_BCRYPT)
 -- -----------------------------------------------------------------------------
-INSERT INTO `admins` (`username`, `password`) VALUES
-('admin', '$2y$10$YMpJwT/rWxDzYPVT6Z3l0u2FhQv0l0C3Ae6Kxvj9pZW8tqeJQKvPq')
+INSERT INTO `admins` (`username`, `password`, `role`) VALUES
+('admin', '$2y$10$YMpJwT/rWxDzYPVT6Z3l0u2FhQv0l0C3Ae6Kxvj9pZW8tqeJQKvPq', 'super_admin')
 ON DUPLICATE KEY UPDATE username = username;
 
 -- =============================================================================

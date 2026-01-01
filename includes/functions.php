@@ -174,6 +174,114 @@ function requireAdmin() {
 }
 
 /**
+ * Get current logged-in user data
+ */
+function getCurrentUser() {
+    if (!isAdminLoggedIn()) {
+        return null;
+    }
+    return db()->fetch("SELECT * FROM admins WHERE id = ?", [$_SESSION['admin_id']]);
+}
+
+/**
+ * Check if current user is super admin
+ */
+function isSuperAdmin() {
+    return isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'super_admin';
+}
+
+/**
+ * Check if current user is admin or super admin
+ */
+function isAdmin() {
+    return isset($_SESSION['admin_role']) && in_array($_SESSION['admin_role'], ['admin', 'super_admin']);
+}
+
+/**
+ * Get current user's role
+ */
+function getCurrentRole() {
+    return $_SESSION['admin_role'] ?? 'user';
+}
+
+/**
+ * Check if current user can edit a specific user
+ * - Super admins can edit anyone
+ * - Admins can edit non-super-admins
+ * - Users can only edit themselves
+ */
+function canEditUser($targetUserId, $targetUserRole = null) {
+    $currentUserId = $_SESSION['admin_id'] ?? 0;
+    $currentRole = getCurrentRole();
+    
+    // Users can always edit themselves
+    if ($currentUserId == $targetUserId) {
+        return true;
+    }
+    
+    // Super admins can edit anyone
+    if ($currentRole === 'super_admin') {
+        return true;
+    }
+    
+    // Admins can edit non-super-admins
+    if ($currentRole === 'admin' && $targetUserRole !== 'super_admin') {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check if current user can delete a specific user
+ * - Cannot delete yourself
+ * - Super admins can delete anyone else
+ * - Admins can delete non-super-admins
+ */
+function canDeleteUser($targetUserId, $targetUserRole = null) {
+    $currentUserId = $_SESSION['admin_id'] ?? 0;
+    $currentRole = getCurrentRole();
+    
+    // Cannot delete yourself
+    if ($currentUserId == $targetUserId) {
+        return false;
+    }
+    
+    // Super admins can delete anyone else
+    if ($currentRole === 'super_admin') {
+        return true;
+    }
+    
+    // Admins can delete non-super-admins
+    if ($currentRole === 'admin' && $targetUserRole !== 'super_admin') {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Require specific role(s) to access page
+ * @param string|array $roles Single role or array of allowed roles
+ */
+function requireRole($roles) {
+    requireAdmin();
+    
+    if (is_string($roles)) {
+        $roles = [$roles];
+    }
+    
+    $currentRole = getCurrentRole();
+    
+    if (!in_array($currentRole, $roles)) {
+        http_response_code(403);
+        echo '<h1>Access Denied</h1><p>You do not have permission to access this page.</p>';
+        echo '<p><a href="index.php">Return to Dashboard</a></p>';
+        exit;
+    }
+}
+
+/**
  * Format currency
  */
 function formatCurrency($amount) {
