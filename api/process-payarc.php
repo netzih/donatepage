@@ -442,6 +442,22 @@ try {
                 'created_at' => date('Y-m-d H:i:s')
             ]);
             
+            // Mark as matched if campaign has matching enabled
+            if ($campaignId && $donationId) {
+                try {
+                    require_once __DIR__ . '/../includes/campaigns.php';
+                    $campaign = getCampaignById($campaignId);
+                    if ($campaign && !empty($campaign['matching_enabled'])) {
+                        db()->execute(
+                            "UPDATE donations SET is_matched = 1 WHERE id = ?",
+                            [$donationId]
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    error_log("Campaign matching error: " . $e->getMessage());
+                }
+            }
+            
             // Send notification emails
             require_once __DIR__ . '/../includes/mail.php';
             sendDonationEmails($donationId);
