@@ -94,6 +94,19 @@ $csrfToken = generateCsrfToken();
                                placeholder="acct_...">
                         <small>Only needed if using Stripe Connect or Organization API keys. Find in Stripe Dashboard > Connect > Accounts</small>
                     </div>
+                    
+                    <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <label>Stripe Webhook URL</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="stripe_webhook_url" readonly 
+                                   value="<?= APP_URL ?>/api/webhook.php"
+                                   style="background: #f5f5f5; flex: 1;">
+                            <button type="button" onclick="copyToClipboard('stripe_webhook_url')" 
+                                    class="btn btn-secondary btn-sm">Copy</button>
+                        </div>
+                        <small>Add this URL in <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Dashboard → Webhooks</a>. 
+                               Select events: <code>checkout.session.completed</code>, <code>invoice.payment_succeeded</code></small>
+                    </div>
                 </section>
                 
                 <section class="card">
@@ -160,11 +173,43 @@ $csrfToken = generateCsrfToken();
                             <option value="live" <?= ($settings['payarc_mode'] ?? '') === 'live' ? 'selected' : '' ?>>Live (Production)</option>
                         </select>
                     </div>
+                    
+                    <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <label>PayArc Webhook URL</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="payarc_webhook_url" readonly 
+                                   value="<?= APP_URL ?>/api/payarc-webhook.php"
+                                   style="background: #f5f5f5; flex: 1;">
+                            <button type="button" onclick="copyToClipboard('payarc_webhook_url')" 
+                                    class="btn btn-secondary btn-sm">Copy</button>
+                        </div>
+                        <small>Add this URL in your PayArc Dashboard for subscription/invoice webhook notifications</small>
+                    </div>
                 </section>
                 
                 <button type="submit" class="btn btn-primary">Save Payment Settings</button>
             </form>
         </main>
     </div>
+    <script>
+        function copyToClipboard(inputId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value).then(() => {
+                // Change button text briefly
+                const btn = input.parentElement.querySelector('button');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#28a745';
+                btn.style.color = 'white';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            });
+        }
+    </script>
 </body>
 </html>
