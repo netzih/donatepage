@@ -97,7 +97,7 @@ if ($campaign) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
 <body class="campaign-page">
     <?php if ($error): ?>
@@ -105,24 +105,24 @@ if ($campaign) {
         <div class="error-content">
             <h1>Campaign Not Found</h1>
             <p>The campaign you're looking for doesn't exist or has ended.</p>
-            <a href="/" class="btn-primary">Return Home</a>
+            <a href="<?= BASE_PATH ?>/" class="btn-primary">Return Home</a>
         </div>
     </div>
     <?php else: ?>
     
     <!-- Campaign Hero -->
-    <div class="campaign-hero" style="<?= $campaign['header_image'] ? 'background-image: url(/' . h($campaign['header_image']) . ')' : '' ?>">
+    <div class="campaign-hero" style="<?= $campaign['header_image'] ? 'background-image: url(' . BASE_PATH . '/' . h($campaign['header_image']) . ')' : '' ?>">
         <div class="campaign-hero-overlay"></div>
         
         <nav class="campaign-nav">
             <div class="nav-container">
-                <a href="/" class="logo">
+                <a href="<?= BASE_PATH ?>/" class="logo">
                     <?php 
                     // Use campaign logo if set, otherwise org logo
                     $displayLogo = $campaign['logo_image'] ?? $logoPath;
                     if ($displayLogo): 
                         // Ensure absolute path
-                        $logoSrc = (strpos($displayLogo, '/') === 0) ? $displayLogo : '/' . $displayLogo;
+                        $logoSrc = (strpos($displayLogo, '/') === 0) ? (BASE_PATH . $displayLogo) : (BASE_PATH . '/' . $displayLogo);
                     ?>
                         <img src="<?= h($logoSrc) ?>" alt="<?= h($orgName) ?>">
                     <?php else: ?>
@@ -421,6 +421,7 @@ if ($campaign) {
     
     <script>
         const CONFIG = {
+            basePath: '<?= BASE_PATH ?>',
             stripeKey: '<?= h($stripePk) ?>',
             paypalClientId: '<?= h($paypalClientId) ?>',
             payarcEnabled: <?= $payarcEnabled ? 'true' : 'false' ?>,
@@ -431,6 +432,6 @@ if ($campaign) {
             matchingMultiplier: <?= $campaign ? $campaign['matching_multiplier'] : 1 ?>
         };
     </script>
-    <script src="/assets/js/campaign.js?v=<?= filemtime(__DIR__ . '/assets/js/campaign.js') ?>"></script>
+    <script src="<?= BASE_PATH ?>/assets/js/campaign.js?v=<?= filemtime(__DIR__ . '/assets/js/campaign.js') ?>"></script>
 </body>
 </html>

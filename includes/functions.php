@@ -29,6 +29,11 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/security.php';
 
+// Define BASE_PATH if not set in config (for backwards compatibility)
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', '');
+}
+
 // Set security headers
 if (function_exists('setSecurityHeaders')) {
     setSecurityHeaders();

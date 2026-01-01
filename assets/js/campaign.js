@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let paymentMode = 'payment'; // 'payment' or 'subscription'
 
     // Campaign-specific config
+    const basePath = CONFIG.basePath || '';
     const matchingEnabled = CONFIG.matchingEnabled || false;
     const matchingMultiplier = CONFIG.matchingMultiplier || 1;
     const campaignId = CONFIG.campaignId || null;
@@ -175,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             try {
                                 // Create a PaymentIntent with donor details
-                                const intentResponse = await fetch('/api/create-payment-intent.php', {
+                                const intentResponse = await fetch(basePath + '/api/create-payment-intent.php', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
@@ -206,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     expressCheckoutElement.on('confirm', async (event) => {
                                         // Update donation record with latest donor details before confirming
                                         try {
-                                            await fetch('/api/update-donation.php', {
+                                            await fetch(basePath + '/api/update-donation.php', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             elements: expressElements,
                                             clientSecret: currentIntentData.clientSecret,
                                             confirmParams: {
-                                                return_url: window.location.origin + '/success.php'
+                                                return_url: window.location.origin + basePath + '/success.php'
                                             }
                                         });
                                         if (error) {
@@ -254,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Stripe: Create PaymentIntent or SetupIntent
-                const response = await fetch('/api/create-payment-intent.php', {
+                const response = await fetch(basePath + '/api/create-payment-intent.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -392,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const action = frequency === 'monthly' ? 'subscribe' : 'charge';
 
-        const response = await fetch('/api/process-payarc.php', {
+        const response = await fetch(basePath + '/api/process-payarc.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -419,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (result.success) {
-            const successUrl = '/success.php?id=' + result.donationId +
+            const successUrl = basePath + '/success.php?id=' + result.donationId +
                 (campaignId ? '&campaign=' + campaignId : '');
             window.location.href = successUrl;
         } else {
@@ -436,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             result = await stripe.confirmSetup({
                 elements,
                 confirmParams: {
-                    return_url: window.location.origin + '/success.php'
+                    return_url: window.location.origin + basePath + '/success.php'
                 },
                 redirect: 'if_required'
             });
@@ -445,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             result = await stripe.confirmPayment({
                 elements,
                 confirmParams: {
-                    return_url: window.location.origin + '/success.php',
+                    return_url: window.location.origin + basePath + '/success.php',
                     receipt_email: donorEmail.value.trim()
                 },
                 redirect: 'if_required'
@@ -473,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (intentId && intentStatus === 'succeeded') {
             // Confirm payment/subscription on server
-            const confirmResponse = await fetch('/api/confirm-payment.php', {
+            const confirmResponse = await fetch(basePath + '/api/confirm-payment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -493,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (confirmData.success) {
                 // Redirect with campaign context
-                const successUrl = '/success.php?id=' + confirmData.donationId +
+                const successUrl = basePath + '/success.php?id=' + confirmData.donationId +
                     (campaignId ? '&campaign=' + campaignId : '');
                 window.location.href = successUrl;
             } else {
@@ -544,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const response = await fetch('/api/process-paypal.php', {
+                const response = await fetch(basePath + '/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -565,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
 
             onApprove: async (data, actions) => {
-                const response = await fetch('/api/process-paypal.php', {
+                const response = await fetch(basePath + '/api/process-paypal.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -579,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (result.success) {
-                    const successUrl = '/success.php?id=' + result.donationId +
+                    const successUrl = basePath + '/success.php?id=' + result.donationId +
                         (campaignId ? '&campaign=' + campaignId : '');
                     window.location.href = successUrl;
                 } else {
