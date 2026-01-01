@@ -8,7 +8,7 @@ session_start();
 require_once __DIR__ . '/includes/functions.php';
 
 $settings = getAllSettings();
-$presetAmounts = getPresetAmounts();
+$globalPresetAmounts = getPresetAmounts();
 $stripePk = $settings['stripe_pk'] ?? '';
 $paypalClientId = $settings['paypal_client_id'] ?? '';
 $paypalMode = $settings['paypal_mode'] ?? 'sandbox';
@@ -57,6 +57,18 @@ if ($campaign) {
     $start = strtotime($campaign['start_date']);
     $end = strtotime($campaign['end_date'] . ' 23:59:59');
     $isActive = $campaign['is_active'] && $now >= $start && $now <= $end;
+}
+
+// Determine preset amounts: use campaign-specific if set, otherwise global
+$presetAmounts = $globalPresetAmounts;
+if ($campaign && !empty($campaign['preset_amounts'])) {
+    $presetAmounts = array_map('intval', array_filter(array_map('trim', explode(',', $campaign['preset_amounts']))));
+}
+
+// Determine default amount: campaign default > first preset amount
+$defaultAmount = $presetAmounts[0] ?? 100;
+if ($campaign && !empty($campaign['default_amount'])) {
+    $defaultAmount = (int)$campaign['default_amount'];
 }
 
 // Get campaign donations for public display
@@ -275,7 +287,7 @@ if ($campaign) {
                     
                     <div class="amount-grid">
                         <?php foreach ($presetAmounts as $amt): ?>
-                        <button class="amount-btn <?= $amt == 100 ? 'active' : '' ?>" data-amount="<?= $amt ?>">
+                        <button class="amount-btn <?= $amt == $defaultAmount ? 'active' : '' ?>" data-amount="<?= $amt ?>">
                             <?= h($currencySymbol) ?><?= $amt ?>
                         </button>
                         <?php endforeach; ?>
@@ -289,11 +301,11 @@ if ($campaign) {
                     <?php if ($campaign['matching_enabled']): ?>
                     <div class="matching-display">
                         <div class="your-donation">
-                            Your donation: <span id="donation-amount"><?= h($currencySymbol) ?>100</span>
+                            Your donation: <span id="donation-amount"><?= h($currencySymbol) ?><?= $defaultAmount ?></span>
                         </div>
                         <div class="org-receives">
                             <span class="sparkle">✨</span>
-                            <strong>The organization gets: <span id="matched-amount"><?= h($currencySymbol) ?><?= 100 * $campaign['matching_multiplier'] ?></span></strong>
+                            <strong>The organization gets: <span id="matched-amount"><?= h($currencySymbol) ?><?= $defaultAmount * $campaign['matching_multiplier'] ?></span></strong>
                         </div>
                     </div>
                     <?php endif; ?>

@@ -162,7 +162,9 @@ function createCampaign($data) {
         'end_date' => $data['end_date'],
         'is_active' => isset($data['is_active']) ? 1 : 0,
         'matchers_section_title' => $data['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
-        'matchers_label_singular' => $data['matchers_label_singular'] ?? 'MATCHER'
+        'matchers_label_singular' => $data['matchers_label_singular'] ?? 'MATCHER',
+        'preset_amounts' => !empty($data['preset_amounts']) ? $data['preset_amounts'] : null,
+        'default_amount' => !empty($data['default_amount']) ? (float)$data['default_amount'] : null
     ]);
 }
 
@@ -207,6 +209,12 @@ function updateCampaign($id, $data) {
     }
     if (isset($data['matchers_label_singular'])) {
         $updateData['matchers_label_singular'] = $data['matchers_label_singular'];
+    }
+    if (array_key_exists('preset_amounts', $data)) {
+        $updateData['preset_amounts'] = !empty($data['preset_amounts']) ? $data['preset_amounts'] : null;
+    }
+    if (array_key_exists('default_amount', $data)) {
+        $updateData['default_amount'] = !empty($data['default_amount']) ? (float)$data['default_amount'] : null;
     }
     
     if (!empty($updateData)) {

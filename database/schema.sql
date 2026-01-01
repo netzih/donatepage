@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
     `is_active` BOOLEAN DEFAULT TRUE,
     `matchers_section_title` VARCHAR(255) DEFAULT 'OUR GENEROUS MATCHERS',
     `matchers_label_singular` VARCHAR(50) DEFAULT 'MATCHER',
+    `preset_amounts` VARCHAR(255) DEFAULT NULL,
+    `default_amount` DECIMAL(10,2) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_slug` (`slug`),

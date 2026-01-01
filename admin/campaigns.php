@@ -85,7 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'end_date' => $_POST['end_date'],
                         'is_active' => isset($_POST['is_active']),
                         'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
-                        'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER'
+                        'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER',
+                        'preset_amounts' => trim($_POST['preset_amounts'] ?? ''),
+                        'default_amount' => $_POST['default_amount'] ?? ''
                     ];
                     
                     // Handle header image upload
@@ -594,6 +596,19 @@ if ($action === 'list') {
                         <div class="form-group">
                             <label for="matchers_label_singular">Individual Item Label</label>
                             <input type="text" id="matchers_label_singular" name="matchers_label_singular" value="<?= h($campaign['matchers_label_singular']) ?>" placeholder="e.g., SPONSOR">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="preset_amounts">Preset Donation Amounts</label>
+                            <input type="text" id="preset_amounts" name="preset_amounts" value="<?= h($campaign['preset_amounts'] ?? '') ?>" placeholder="e.g., 18,36,54,100,180,500">
+                            <small>Comma-separated amounts. Leave blank to use global defaults.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="default_amount">Default Selected Amount ($)</label>
+                            <input type="number" id="default_amount" name="default_amount" value="<?= h($campaign['default_amount'] ?? '') ?>" placeholder="e.g., 54" min="1" step="1">
+                            <small>Which amount button is pre-selected. Leave blank to select first amount.</small>
                         </div>
                     </div>
                     
