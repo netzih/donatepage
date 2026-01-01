@@ -4,8 +4,9 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // State
-    let selectedAmount = 100;
+    // State - get initial amount from active button or default to 100
+    const activeAmountBtn = document.querySelector('.amount-btn.active');
+    let selectedAmount = activeAmountBtn ? parseInt(activeAmountBtn.dataset.amount) : 100;
     let frequency = 'once';
     let stripe = null;
     let elements = null;
