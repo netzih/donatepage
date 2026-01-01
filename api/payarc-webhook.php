@@ -90,6 +90,18 @@ try {
             handleSubscriptionCancelled($event);
             break;
             
+        // Subscription updated (e.g., plan change, amount change)
+        case 'subscription.updated':
+        case 'subscription.modified':
+            handleSubscriptionUpdated($event);
+            break;
+            
+        // Plan updated
+        case 'plan.updated':
+        case 'plan.modified':
+            handlePlanUpdated($event);
+            break;
+            
         default:
             // Log unknown events for debugging
             file_put_contents($logFile, date('Y-m-d H:i:s') . " - Unknown event type: $eventType\n---\n", FILE_APPEND);
@@ -266,4 +278,81 @@ function handleSubscriptionCancelled($event) {
         );
         file_put_contents($logFile, date('Y-m-d H:i:s') . " - Subscription cancelled: $subscriptionId\n---\n", FILE_APPEND);
     }
+}
+
+/**
+ * Handle subscription updated (plan change, etc.)
+ */
+function handleSubscriptionUpdated($event) {
+    global $logFile;
+    
+    $data = $event['data'] ?? $event;
+    $object = $data['object'] ?? $data;
+    
+    $subscriptionId = $object['subscription_id'] ?? $object['id'] ?? $data['subscription_id'] ?? null;
+    $planId = $object['plan_id'] ?? $object['plan'] ?? $data['plan_id'] ?? null;
+    $status = $object['status'] ?? $data['status'] ?? null;
+    
+    file_put_contents($logFile, date('Y-m-d H:i:s') . " - Subscription updated: $subscriptionId, plan: $planId, status: $status\n", FILE_APPEND);
+    
+    if ($subscriptionId) {
+        // If plan changed, try to extract the new amount from plan_id
+        // Plan IDs follow format: monthly_donation_{amount_in_cents}
+        if ($planId && preg_match('/monthly_donation_(\d+)/', $planId, $matches)) {
+            $newAmountCents = (int)$matches[1];
+            $newAmount = $newAmountCents / 100;
+            
+            // Update local subscription amount
+            db()->execute(
+                "UPDATE payarc_subscriptions SET amount = ? WHERE payarc_subscription_id = ?",
+                [$newAmount, $subscriptionId]
+            );
+            
+            // Update linked donation
+            $sub = db()->fetch(
+                "SELECT donation_id FROM payarc_subscriptions WHERE payarc_subscription_id = ?",
+                [$subscriptionId]
+            );
+            if ($sub && !empty($sub['donation_id'])) {
+                db()->execute(
+                    "UPDATE donations SET amount = ? WHERE id = ?",
+                    [$newAmount, $sub['donation_id']]
+                );
+            }
+            
+            file_put_contents($logFile, date('Y-m-d H:i:s') . " - Updated local amount to $newAmount for subscription $subscriptionId\n---\n", FILE_APPEND);
+        }
+        
+        // Update status if provided
+        if ($status) {
+            $normalizedStatus = strtolower($status);
+            if (in_array($normalizedStatus, ['active', 'cancelled', 'canceled', 'paused', 'past_due'])) {
+                $dbStatus = ($normalizedStatus === 'canceled') ? 'cancelled' : $normalizedStatus;
+                db()->execute(
+                    "UPDATE payarc_subscriptions SET status = ? WHERE payarc_subscription_id = ?",
+                    [$dbStatus, $subscriptionId]
+                );
+            }
+        }
+    }
+}
+
+/**
+ * Handle plan updated
+ */
+function handlePlanUpdated($event) {
+    global $logFile;
+    
+    $data = $event['data'] ?? $event;
+    $object = $data['object'] ?? $data;
+    
+    $planId = $object['plan_id'] ?? $object['id'] ?? $data['plan_id'] ?? null;
+    $amount = $object['amount'] ?? $data['amount'] ?? null;
+    $name = $object['name'] ?? $data['name'] ?? null;
+    
+    file_put_contents($logFile, date('Y-m-d H:i:s') . " - Plan updated: $planId, amount: $amount, name: $name\n---\n", FILE_APPEND);
+    
+    // Note: Plan updates affect all subscriptions using that plan
+    // Our current design uses separate plans per amount tier, so this is mainly for logging
+    // If you want to sync all subscriptions on this plan, you could query PayArc for subscribers
 }

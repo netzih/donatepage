@@ -62,65 +62,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $newAmount = (int)($_POST['new_amount'] ?? 0);
             $localId = (int)($_POST['local_id'] ?? 0);
             
-            if ($subscriptionId && $customerId && $newAmount > 0 && $payarcBearerToken) {
+            if ($subscriptionId && $newAmount > 0 && $payarcBearerToken) {
                 try {
-                    // Step 1: Cancel the existing subscription
-                    $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId . '/cancel');
-                    curl_setopt_array($ch, [
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_CUSTOMREQUEST => 'PATCH',
-                        CURLOPT_POSTFIELDS => '{}',
-                        CURLOPT_HTTPHEADER => [
-                            'Authorization: Bearer ' . $payarcBearerToken,
-                            'Content-Type: application/json',
-                            'Accept: application/json'
-                        ]
-                    ]);
-                    curl_exec($ch);
-                    curl_close($ch);
-                    
-                    // Step 2: Create or get plan for new amount
+                    // Step 1: Get or create plan for new amount
                     $planId = 'monthly_donation_' . ($newAmount * 100);
                     $planName = 'Monthly $' . $newAmount . ' Donation';
                     
-                    // Try to create plan (will fail silently if exists)
-                    $planData = json_encode([
-                        'plan_id' => $planId,
-                        'name' => $planName,
-                        'amount' => (string)($newAmount * 100),
-                        'interval' => 'month',
-                        'interval_count' => 1,
-                        'currency' => 'usd',
-                        'statement_descriptor' => 'Donation',
-                        'plan_type' => 'digital'
-                    ]);
-                    
-                    $ch = curl_init($baseUrl . '/plans');
+                    // Try to GET the plan first to see if it exists
+                    $ch = curl_init($baseUrl . '/plans/' . $planId);
                     curl_setopt_array($ch, [
                         CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
-                        CURLOPT_POSTFIELDS => $planData,
                         CURLOPT_HTTPHEADER => [
                             'Authorization: Bearer ' . $payarcBearerToken,
                             'Content-Type: application/json',
                             'Accept: application/json'
                         ]
                     ]);
-                    curl_exec($ch);
+                    $planCheck = curl_exec($ch);
+                    $planHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
                     
-                    // Step 3: Create new subscription with new plan
-                    $subData = json_encode([
-                        'customer_id' => $customerId,
-                        'plan_id' => $planId,
-                        'statement_description' => 'Monthly Donation'
+                    // If plan doesn't exist, create it
+                    if ($planHttpCode === 404 || $planHttpCode >= 400) {
+                        $planData = json_encode([
+                            'plan_id' => $planId,
+                            'name' => $planName,
+                            'amount' => (string)($newAmount * 100),
+                            'interval' => 'month',
+                            'interval_count' => 1,
+                            'currency' => 'usd',
+                            'statement_descriptor' => 'Donation',
+                            'plan_type' => 'digital'
+                        ]);
+                        
+                        $ch = curl_init($baseUrl . '/plans');
+                        curl_setopt_array($ch, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_POST => true,
+                            CURLOPT_POSTFIELDS => $planData,
+                            CURLOPT_HTTPHEADER => [
+                                'Authorization: Bearer ' . $payarcBearerToken,
+                                'Content-Type: application/json',
+                                'Accept: application/json'
+                            ]
+                        ]);
+                        $createResult = curl_exec($ch);
+                        $createHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        
+                        if ($createHttpCode >= 400) {
+                            $error = 'Failed to create plan for new amount.';
+                            goto editEnd;
+                        }
+                    }
+                    
+                    // Step 2: PATCH the subscription to use the new plan
+                    $patchData = json_encode([
+                        'plan_id' => $planId
                     ]);
                     
-                    $ch = curl_init($baseUrl . '/subscriptions');
+                    $ch = curl_init($baseUrl . '/subscriptions/' . $subscriptionId);
                     curl_setopt_array($ch, [
                         CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
-                        CURLOPT_POSTFIELDS => $subData,
+                        CURLOPT_CUSTOMREQUEST => 'PATCH',
+                        CURLOPT_POSTFIELDS => $patchData,
                         CURLOPT_HTTPHEADER => [
                             'Authorization: Bearer ' . $payarcBearerToken,
                             'Content-Type: application/json',
@@ -131,29 +136,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
                     
-                    $result = json_decode($response, true);
-                    $newSubId = $result['data']['id'] ?? $result['data']['subscription_id'] ?? null;
-                    
-                    if ($newSubId) {
-                        // Update local database with new subscription ID and amount
+                    if ($httpCode >= 200 && $httpCode < 300) {
+                        // Update local database with new amount
                         db()->execute(
-                            "UPDATE payarc_subscriptions SET payarc_subscription_id = ?, amount = ?, next_billing_date = DATE_ADD(NOW(), INTERVAL 1 MONTH) WHERE id = ?",
-                            [$newSubId, $newAmount, $localId]
+                            "UPDATE payarc_subscriptions SET amount = ? WHERE id = ?",
+                            [$newAmount, $localId]
                         );
                         
                         // Update the linked donation record
                         $sub = db()->fetch("SELECT donation_id FROM payarc_subscriptions WHERE id = ?", [$localId]);
-                        if ($sub && !empty($sub[0]['donation_id'])) {
+                        if ($sub && !empty($sub['donation_id'])) {
                             db()->execute(
-                                "UPDATE donations SET amount = ?, transaction_id = ? WHERE id = ?",
-                                [$newAmount, $newSubId, $sub[0]['donation_id']]
+                                "UPDATE donations SET amount = ? WHERE id = ?",
+                                [$newAmount, $sub['donation_id']]
                             );
                         }
                         
                         $success = 'Subscription amount changed to $' . $newAmount . '/month successfully!';
                     } else {
-                        $error = 'Failed to create new subscription in PayArc. Please try again.';
+                        $result = json_decode($response, true);
+                        $errorMsg = $result['message'] ?? $result['error'] ?? 'Unknown error';
+                        $error = 'Failed to update subscription: ' . $errorMsg;
                     }
+                    
+                    editEnd:
                 } catch (Exception $e) {
                     $error = 'Error updating subscription: ' . $e->getMessage();
                 }
@@ -306,7 +312,7 @@ usort($allSubscriptions, function($a, $b) {
                                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                         <!-- Edit Amount Form (PayArc only) -->
                                         <form method="POST" style="display: flex; gap: 4px; align-items: center;"
-                                              onsubmit="return confirm('Change subscription amount to $' + this.new_amount.value + '/month?\n\nThis will cancel the current subscription and create a new one with the updated amount.');">
+                                              onsubmit="return confirm('Change subscription amount to $' + this.new_amount.value + '/month?');">
                                             <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                                             <input type="hidden" name="action" value="edit">
                                             <input type="hidden" name="subscription_id" value="<?= h($sub['payarc_subscription_id'] ?? '') ?>">
