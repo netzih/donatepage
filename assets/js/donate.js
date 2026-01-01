@@ -189,15 +189,58 @@ document.addEventListener('DOMContentLoaded', () => {
                                             console.log('Could not update donor details:', updateError.message);
                                         }
 
-                                        const { error } = await stripe.confirmPayment({
-                                            elements: expressElements,
-                                            clientSecret: currentIntentData.clientSecret,
-                                            confirmParams: {
-                                                return_url: window.location.origin + basePath + '/success.php'
+                                        // Different confirmation for subscriptions vs one-time payments
+                                        if (currentIntentData.mode === 'subscription') {
+                                            // For subscriptions, use confirmSetup then call server to create subscription
+                                            const { error, setupIntent } = await stripe.confirmSetup({
+                                                elements: expressElements,
+                                                clientSecret: currentIntentData.clientSecret,
+                                                confirmParams: {
+                                                    return_url: window.location.origin + basePath + '/success.php'
+                                                },
+                                                redirect: 'if_required'
+                                            });
+
+                                            if (error) {
+                                                showMessage(error.message, 'error');
+                                            } else if (setupIntent && setupIntent.status === 'succeeded') {
+                                                // SetupIntent confirmed - now create subscription server-side
+                                                try {
+                                                    const confirmResponse = await fetch('api/confirm-payment.php', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            mode: 'subscription',
+                                                            intent_id: setupIntent.id,
+                                                            amount: currentIntentData.amount || selectedAmount,
+                                                            donor_name: donorName ? donorName.value.trim() : '',
+                                                            donor_email: donorEmail ? donorEmail.value.trim() : '',
+                                                            csrf_token: CONFIG.csrfToken
+                                                        })
+                                                    });
+                                                    const confirmData = await confirmResponse.json();
+
+                                                    if (confirmData.success) {
+                                                        window.location.href = basePath + '/success.php?id=' + confirmData.donationId;
+                                                    } else {
+                                                        showMessage(confirmData.error || 'Subscription creation failed', 'error');
+                                                    }
+                                                } catch (confirmError) {
+                                                    showMessage('Subscription error: ' + confirmError.message, 'error');
+                                                }
                                             }
-                                        });
-                                        if (error) {
-                                            showMessage(error.message, 'error');
+                                        } else {
+                                            // For one-time payments, use confirmPayment
+                                            const { error } = await stripe.confirmPayment({
+                                                elements: expressElements,
+                                                clientSecret: currentIntentData.clientSecret,
+                                                confirmParams: {
+                                                    return_url: window.location.origin + basePath + '/success.php'
+                                                }
+                                            });
+                                            if (error) {
+                                                showMessage(error.message, 'error');
+                                            }
                                         }
                                     });
                                 }
