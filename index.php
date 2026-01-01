@@ -213,7 +213,7 @@ if ($embedMode > 0) {
     <?php endif; ?>
     
     <?php if ($paypalClientId): ?>
-    <script src="https://www.paypal.com/sdk/js?client-id=<?= h($paypalClientId) ?>&currency=USD<?= $paypalMode === 'sandbox' ? '' : '' ?>"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?= h($paypalClientId) ?>&currency=USD&enable-funding=venmo<?= $paypalMode === 'sandbox' ? '' : '' ?>"></script>
     <?php endif; ?>
     
     <script>

@@ -416,7 +416,7 @@ if ($campaign) {
     <?php endif; ?>
     
     <?php if ($paypalClientId): ?>
-    <script src="https://www.paypal.com/sdk/js?client-id=<?= h($paypalClientId) ?>&currency=USD"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?= h($paypalClientId) ?>&currency=USD&enable-funding=venmo"></script>
     <?php endif; ?>
     
     <script>
