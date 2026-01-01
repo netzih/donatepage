@@ -71,8 +71,26 @@ function sendEmail($to, $subject, $htmlBody, $toName = '') {
  * Send donor receipt email
  */
 function sendDonorReceipt($donation) {
+    // Default to global templates
     $subject = getSetting('email_donor_subject', 'Thank you for your donation!');
     $body = getSetting('email_donor_body');
+    
+    // Check for campaign-specific email templates
+    $campaignTitle = '';
+    if (!empty($donation['campaign_id'])) {
+        require_once __DIR__ . '/campaigns.php';
+        $campaign = getCampaignById($donation['campaign_id']);
+        if ($campaign) {
+            $campaignTitle = $campaign['title'];
+            // Use campaign email templates if set
+            if (!empty($campaign['email_subject'])) {
+                $subject = $campaign['email_subject'];
+            }
+            if (!empty($campaign['email_body'])) {
+                $body = $campaign['email_body'];
+            }
+        }
+    }
     
     $data = [
         'amount' => formatCurrency($donation['amount']),
@@ -81,13 +99,16 @@ function sendDonorReceipt($donation) {
         'frequency' => $donation['frequency'] === 'monthly' ? 'Monthly' : 'One-time',
         'date' => date('F j, Y'),
         'transaction_id' => $donation['transaction_id'],
-        'org_name' => getSetting('org_name')
+        'org_name' => getSetting('org_name'),
+        'campaign_title' => $campaignTitle
     ];
     
     // Calculate matched amount if applicable
     if (!empty($donation['is_matched']) && !empty($donation['campaign_id'])) {
-        require_once __DIR__ . '/campaigns.php';
-        $campaign = getCampaignById($donation['campaign_id']);
+        if (!isset($campaign)) {
+            require_once __DIR__ . '/campaigns.php';
+            $campaign = getCampaignById($donation['campaign_id']);
+        }
         if ($campaign) {
             $data['matched_amount'] = formatCurrency($donation['amount'] * $campaign['matching_multiplier']);
         }

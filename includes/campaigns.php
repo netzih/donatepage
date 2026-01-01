@@ -164,7 +164,9 @@ function createCampaign($data) {
         'matchers_section_title' => $data['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
         'matchers_label_singular' => $data['matchers_label_singular'] ?? 'MATCHER',
         'preset_amounts' => !empty($data['preset_amounts']) ? $data['preset_amounts'] : null,
-        'default_amount' => !empty($data['default_amount']) ? (float)$data['default_amount'] : null
+        'default_amount' => !empty($data['default_amount']) ? (float)$data['default_amount'] : null,
+        'email_subject' => !empty($data['email_subject']) ? $data['email_subject'] : null,
+        'email_body' => !empty($data['email_body']) ? $data['email_body'] : null
     ]);
 }
 
@@ -215,6 +217,12 @@ function updateCampaign($id, $data) {
     }
     if (array_key_exists('default_amount', $data)) {
         $updateData['default_amount'] = !empty($data['default_amount']) ? (float)$data['default_amount'] : null;
+    }
+    if (array_key_exists('email_subject', $data)) {
+        $updateData['email_subject'] = !empty($data['email_subject']) ? $data['email_subject'] : null;
+    }
+    if (array_key_exists('email_body', $data)) {
+        $updateData['email_body'] = !empty($data['email_body']) ? $data['email_body'] : null;
     }
     
     if (!empty($updateData)) {

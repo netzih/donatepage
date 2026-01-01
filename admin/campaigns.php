@@ -87,7 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
                         'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER',
                         'preset_amounts' => trim($_POST['preset_amounts'] ?? ''),
-                        'default_amount' => $_POST['default_amount'] ?? ''
+                        'default_amount' => $_POST['default_amount'] ?? '',
+                        'email_subject' => trim($_POST['email_subject'] ?? ''),
+                        'email_body' => $_POST['email_body'] ?? ''
                     ];
                     
                     // Handle header image upload
@@ -612,6 +614,23 @@ if ($action === 'list') {
                         </div>
                     </div>
                     
+                    <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
+                    <h3 style="margin-bottom: 16px;">📧 Campaign Email Receipt (Optional)</h3>
+                    <p style="margin-bottom: 16px; color: #666; font-size: 13px;">
+                        Custom email sent to donors for this campaign. Leave blank to use global email template.<br>
+                        Variables: <code>{{amount}}</code>, <code>{{donor_name}}</code>, <code>{{campaign_title}}</code>, <code>{{date}}</code>, <code>{{transaction_id}}</code>, <code>{{org_name}}</code>, <code>{{matched_amount}}</code>
+                    </p>
+                    
+                    <div class="form-group">
+                        <label for="email_subject">Email Subject</label>
+                        <input type="text" id="email_subject" name="email_subject" value="<?= h($campaign['email_subject'] ?? '') ?>" placeholder="e.g., Thank you for supporting {{campaign_title}}!">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email_body">Email Body</label>
+                        <textarea id="email_body" name="email_body" rows="8"><?= h($campaign['email_body'] ?? '') ?></textarea>
+                    </div>
+                    
                     <div class="form-group">
                         <div class="toggle-switch">
                             <input type="checkbox" id="is_active" name="is_active" <?= $campaign['is_active'] ? 'checked' : '' ?>>
@@ -818,6 +837,26 @@ if ($action === 'list') {
                         'hr', 'eraser', 'fullsize'
                     ],
                     height: 400
+                });
+            }
+            
+            // Initialize email body editor
+            const emailBodyArea = document.getElementById('email_body');
+            if (emailBodyArea) {
+                Jodit.make('#email_body', {
+                    uploader: {
+                        url: '/api/upload-jodit.php'
+                    },
+                    toolbarButtonSize: 'middle',
+                    buttons: [
+                        'source', '|',
+                        'bold', 'italic', '|',
+                        'ul', 'ol', '|',
+                        'font', 'fontsize', 'brush', '|',
+                        'link', '|',
+                        'align', 'undo', 'redo'
+                    ],
+                    height: 250
                 });
             }
         });

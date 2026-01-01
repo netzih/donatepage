@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
     `matchers_label_singular` VARCHAR(50) DEFAULT 'MATCHER',
     `preset_amounts` VARCHAR(255) DEFAULT NULL,
     `default_amount` DECIMAL(10,2) DEFAULT NULL,
+    `email_subject` VARCHAR(255) DEFAULT NULL,
+    `email_body` TEXT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_slug` (`slug`),
