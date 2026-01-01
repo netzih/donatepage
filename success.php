@@ -290,9 +290,9 @@ if ($donation && !empty($donation['campaign_id'])) {
         <?php endif; ?>
         
         <?php if ($campaign && !empty($campaign['slug'])): ?>
-        <a href="/campaign/<?= h($campaign['slug']) ?>" class="btn">Return to Campaign</a>
+        <a href="<?= BASE_PATH ?>/campaign/<?= h($campaign['slug']) ?>" class="btn">Return to Campaign</a>
         <?php else: ?>
-        <a href="/" class="btn">Return Home</a>
+        <a href="<?= BASE_PATH ?>/" class="btn">Return Home</a>
         <?php endif; ?>
     </div>
 </body>
