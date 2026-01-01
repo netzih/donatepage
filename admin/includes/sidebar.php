@@ -24,6 +24,7 @@ $orgName = $settings['org_name'] ?? 'Donation Platform';
         <a href="<?= BASE_PATH ?>/admin/payments"<?= ($currentPage ?? '') === 'payments' ? ' class="active"' : '' ?>>💰 Payment Gateways</a>
         <a href="<?= BASE_PATH ?>/admin/emails"<?= ($currentPage ?? '') === 'emails' ? ' class="active"' : '' ?>>📧 Email Templates</a>
         <a href="<?= BASE_PATH ?>/admin/civicrm"<?= ($currentPage ?? '') === 'civicrm' ? ' class="active"' : '' ?>>🔗 CiviCRM</a>
+        <a href="<?= BASE_PATH ?>/admin/givewp"<?= ($currentPage ?? '') === 'givewp' ? ' class="active"' : '' ?>>📥 GiveWP</a>
         <hr>
         <a href="<?= BASE_PATH ?>/admin/logout">🚪 Logout</a>
     </nav>
