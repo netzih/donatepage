@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER'
                     ]);
                     // Redirect to prevent form resubmission
-                    header('Location: /admin/campaigns?success=created');
+                    header('Location: ' . BASE_PATH . '/admin/campaigns?success=created');
                     exit;
                 } catch (Exception $e) {
                     $error = 'Failed to create campaign: ' . $e->getMessage();
@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'delete':
                 try {
                     deleteCampaign($_POST['campaign_id']);
-                    header('Location: /admin/campaigns?success=deleted');
+                    header('Location: ' . BASE_PATH . '/admin/campaigns?success=deleted');
                     exit;
                 } catch (Exception $e) {
                     $error = 'Failed to delete campaign: ' . $e->getMessage();

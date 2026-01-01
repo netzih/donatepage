@@ -61,14 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 db()->insert('donations', $donationData);
-                header('Location: /admin/donations?success=added');
+                header('Location: ' . BASE_PATH . '/admin/donations?success=added');
                 exit;
             } catch (Exception $e) {
                 // If some columns don't exist, try without them
                 unset($donationData['display_name'], $donationData['donation_message'], $donationData['is_anonymous'], $donationData['is_matched']);
                 try {
                     db()->insert('donations', $donationData);
-                    header('Location: /admin/donations?success=added');
+                    header('Location: ' . BASE_PATH . '/admin/donations?success=added');
                     exit;
                 } catch (Exception $e2) {
                     $error = 'Failed to add donation: ' . $e2->getMessage();
@@ -146,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )['count'] ?? 0;
             
             $success = "Processed " . count($orphanDonations) . " unique emails. Donors created/linked successfully!";
-            header('Location: /admin/donations?success=linked&count=' . count($orphanDonations));
+            header('Location: ' . BASE_PATH . '/admin/donations?success=linked&count=' . count($orphanDonations));
             exit;
         } catch (Exception $e) {
             $error = 'Failed to link donors: ' . $e->getMessage();
@@ -160,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             try {
                 db()->execute("UPDATE donations SET status = 'deleted' WHERE id IN ($placeholders)", array_map('intval', $ids));
-                header('Location: /admin/donations?success=bulk_deleted&count=' . count($ids));
+                header('Location: ' . BASE_PATH . '/admin/donations?success=bulk_deleted&count=' . count($ids));
                 exit;
             } catch (Exception $e) {
                 $error = 'Bulk delete failed: ' . $e->getMessage();
@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     array_unshift($params, (int)$campaignId);
                     db()->execute("UPDATE donations SET campaign_id = ? WHERE id IN ($placeholders)", $params);
                 }
-                header('Location: /admin/donations?success=bulk_campaign&count=' . count($ids));
+                header('Location: ' . BASE_PATH . '/admin/donations?success=bulk_campaign&count=' . count($ids));
                 exit;
             } catch (Exception $e) {
                 $error = 'Bulk campaign assign failed: ' . $e->getMessage();
