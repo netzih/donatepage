@@ -228,7 +228,7 @@ usort($allSubscriptions, function($a, $b) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscriptions - Admin</title>
-    <link rel="stylesheet" href="/admin/admin-style.css">
+    <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/admin-style.css">
 </head>
 <body>
     <div class="admin-layout">
