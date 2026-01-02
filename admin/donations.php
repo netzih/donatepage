@@ -189,6 +189,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    
+    // Clean up stale pending donations
+    if ($action === 'cleanup_pending') {
+        $hoursOld = (int)($_POST['hours_old'] ?? 24);
+        $cleanedCount = cleanupStalePendingDonations($hoursOld);
+        header('Location: ' . BASE_PATH . '/admin/donations?tab=pending&success=cleanup&count=' . $cleanedCount);
+        exit;
+    }
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -204,15 +212,37 @@ $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
 $campaignFilter = $_GET['campaign'] ?? '';
+$currentTab = $_GET['tab'] ?? 'completed'; // Default to completed tab
+
+// Count donations by status for tab badges
+$pendingCount = db()->fetch(
+    "SELECT COUNT(*) as count FROM donations WHERE status = 'pending'"
+)['count'] ?? 0;
+$completedCount = db()->fetch(
+    "SELECT COUNT(*) as count FROM donations WHERE status IN ('completed', 'refunded')"
+)['count'] ?? 0;
 
 // Get all campaigns for filter dropdown
 require_once __DIR__ . '/../includes/campaigns.php';
 $allCampaigns = getAllCampaigns(true);
 
-// Build WHERE clause
-// Exclude deleted donations and anonymous pending donations (no name)
-$where = ["status != 'deleted'", "(status != 'pending' OR (donor_name IS NOT NULL AND donor_name != ''))"];
+// Build WHERE clause based on tab
+$where = ["status != 'deleted'"];
 $params = [];
+
+// Apply tab filter
+switch ($currentTab) {
+    case 'pending':
+        $where[] = "status = 'pending'";
+        break;
+    case 'all':
+        // Show everything except deleted
+        break;
+    case 'completed':
+    default:
+        $where[] = "status IN ('completed', 'refunded')";
+        break;
+}
 
 // Amount filters
 if ($amountFilter && ($amountMin !== '' || $amountMax !== '')) {
@@ -469,11 +499,30 @@ $queryString = http_build_query($queryParams);
             </div>
             <?php endif; ?>
             
+            <?php if (isset($_GET['success']) && $_GET['success'] === 'cleanup'): ?>
+            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                ✓ <?= (int)($_GET['count'] ?? 0) ?> stale pending donation(s) cleaned up!
+            </div>
+            <?php endif; ?>
+            
             <?php if (!empty($error)): ?>
             <div class="alert alert-error" style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
                 <?= h($error) ?>
             </div>
             <?php endif; ?>
+            
+            <!-- Donation Tabs -->
+            <div style="margin-bottom: 20px; display: flex; gap: 0; border-bottom: 2px solid #e0e0e0;">
+                <a href="?tab=completed" class="donation-tab <?= $currentTab === 'completed' ? 'active' : '' ?>" style="padding: 12px 24px; text-decoration: none; color: <?= $currentTab === 'completed' ? '#20a39e' : '#666' ?>; font-weight: 600; border-bottom: 3px solid <?= $currentTab === 'completed' ? '#20a39e' : 'transparent' ?>; margin-bottom: -2px; transition: all 0.2s;">
+                    ✓ Completed <span style="background: <?= $currentTab === 'completed' ? '#20a39e' : '#e0e0e0' ?>; color: <?= $currentTab === 'completed' ? 'white' : '#666' ?>; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px;"><?= $completedCount ?></span>
+                </a>
+                <a href="?tab=pending" class="donation-tab <?= $currentTab === 'pending' ? 'active' : '' ?>" style="padding: 12px 24px; text-decoration: none; color: <?= $currentTab === 'pending' ? '#f59e0b' : '#666' ?>; font-weight: 600; border-bottom: 3px solid <?= $currentTab === 'pending' ? '#f59e0b' : 'transparent' ?>; margin-bottom: -2px; transition: all 0.2s;">
+                    ⏳ Pending <span style="background: <?= $currentTab === 'pending' ? '#f59e0b' : '#e0e0e0' ?>; color: <?= $currentTab === 'pending' ? 'white' : '#666' ?>; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px;"><?= $pendingCount ?></span>
+                </a>
+                <a href="?tab=all" class="donation-tab <?= $currentTab === 'all' ? 'active' : '' ?>" style="padding: 12px 24px; text-decoration: none; color: <?= $currentTab === 'all' ? '#6366f1' : '#666' ?>; font-weight: 600; border-bottom: 3px solid <?= $currentTab === 'all' ? '#6366f1' : 'transparent' ?>; margin-bottom: -2px; transition: all 0.2s;">
+                    📋 All
+                </a>
+            </div>
             
             <!-- Action Buttons -->
             <div style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
@@ -500,11 +549,23 @@ $queryString = http_build_query($queryParams);
                     </button>
                 </form>
                 <?php endif; ?>
+                
+                <?php if ($currentTab === 'pending' && $pendingCount > 0): ?>
+                <form method="POST" style="display: inline;" onsubmit="return confirm('This will delete all pending donations older than 24 hours. These are typically abandoned payment attempts. Continue?');">
+                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                    <input type="hidden" name="action" value="cleanup_pending">
+                    <input type="hidden" name="hours_old" value="24">
+                    <button type="submit" class="btn" style="background: #dc3545; color: white;">
+                        🗑️ Clean Up Old Pending (24h+)
+                    </button>
+                </form>
+                <?php endif; ?>
             </div>
 
             <!-- Filters -->
             <section class="card filters-bar">
                 <form method="GET" action="">
+                    <input type="hidden" name="tab" value="<?= h($currentTab) ?>">
                     <div class="filters-row">
                         <!-- Amount Filter -->
                         <div class="filter-group">
@@ -573,7 +634,7 @@ $queryString = http_build_query($queryParams);
                         <div class="filter-actions">
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
                             <?php if ($amountFilter || $dateFilter || $statusFilter || $campaignFilter): ?>
-                            <a href="donations.php" class="clear-filters">Clear All</a>
+                            <a href="donations.php?tab=<?= h($currentTab) ?>" class="clear-filters">Clear All</a>
                             <?php endif; ?>
                         </div>
                     </div>

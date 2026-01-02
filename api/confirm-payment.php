@@ -160,6 +160,15 @@ try {
                 sync_donation_to_civicrm($donation['id']);
             }
             
+            // Clean up any sibling pending donations from this session
+            cleanupSiblingPendingDonations(
+                $donation['id'],
+                $donation['amount'],
+                $donorEmail,
+                'stripe',
+                $donation['campaign_id'] ?? null
+            );
+            
             jsonResponse([
                 'success' => true,
                 'donationId' => $donation['id'],
@@ -228,6 +237,15 @@ try {
         if (getSetting('civicrm_enabled') === '1' && getSetting('civicrm_sync_mode') === 'auto') {
             sync_donation_to_civicrm($donation['id']);
         }
+        
+        // Clean up any sibling pending donations from this session
+        cleanupSiblingPendingDonations(
+            $donation['id'],
+            $donation['amount'],
+            $donorEmail,
+            'stripe',
+            $donation['campaign_id'] ?? null
+        );
         
         jsonResponse([
             'success' => true,

@@ -262,6 +262,17 @@ try {
                 // Payment succeeded but DB failed - donationId stays 0
             }
             
+            // Clean up any sibling pending donations from this session
+            if ($donationId) {
+                cleanupSiblingPendingDonations(
+                    $donationId,
+                    $amount,
+                    $donorEmail,
+                    'payarc',
+                    $campaignId
+                );
+            }
+            
             // Always return success since payment went through
             jsonResponse([
                 'success' => true,
@@ -461,6 +472,15 @@ try {
             // Send notification emails
             require_once __DIR__ . '/../includes/mail.php';
             sendDonationEmails($donationId);
+            
+            // Clean up any sibling pending donations from this session
+            cleanupSiblingPendingDonations(
+                $donationId,
+                $amount,
+                $donorEmail,
+                'payarc',
+                $campaignId
+            );
             
             jsonResponse([
                 'success' => true,

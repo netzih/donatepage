@@ -368,3 +368,126 @@ function jsonResponse($data, $statusCode = 200) {
     echo json_encode($data);
     exit;
 }
+
+/**
+ * Clean up sibling pending donations when a donation completes.
+ * This removes other pending donations with similar characteristics:
+ * - Same amount
+ * - Created within a short time window (e.g., last 30 minutes)
+ * - Similar email patterns (partial matches as user was typing)
+ * - Same payment method
+ * 
+ * @param int $completedDonationId The ID of the just-completed donation
+ * @param float $amount The donation amount
+ * @param string $email The final email address
+ * @param string $paymentMethod The payment method used (stripe, payarc, etc.)
+ * @param int|null $campaignId Optional campaign ID
+ * @return int Number of pending donations cleaned up
+ */
+function cleanupSiblingPendingDonations($completedDonationId, $amount, $email, $paymentMethod = null, $campaignId = null) {
+    if (empty($email) || $completedDonationId <= 0) {
+        return 0;
+    }
+    
+    try {
+        // Build query to find sibling pending donations:
+        // 1. Same amount
+        // 2. Status is pending
+        // 3. Not the completed donation itself
+        // 4. Created within the last 3 minutes
+        // 5. Email domain matches OR email is a prefix of the final email
+        
+        $emailParts = explode('@', $email);
+        $emailDomain = isset($emailParts[1]) ? $emailParts[1] : '';
+        $emailLocal = $emailParts[0];
+        
+        $params = [$completedDonationId, $amount];
+        $conditions = [
+            "status = 'pending'",
+            "id != ?",
+            "amount = ?",
+            "created_at >= DATE_SUB(NOW(), INTERVAL 3 MINUTE)"
+        ];
+        
+        // Add payment method filter if provided
+        if ($paymentMethod) {
+            $conditions[] = "payment_method = ?";
+            $params[] = $paymentMethod;
+        }
+        
+        // Add campaign filter if provided
+        if ($campaignId) {
+            $conditions[] = "(campaign_id = ? OR campaign_id IS NULL)";
+            $params[] = $campaignId;
+        }
+        
+        // Email matching: match if email is partial of final email OR same domain
+        // This catches cases like: jo@, john@, john@gm, john@gmail.com
+        if ($emailDomain) {
+            $conditions[] = "(donor_email LIKE ? OR donor_email LIKE ? OR donor_email = '' OR donor_email IS NULL)";
+            $params[] = $emailLocal . '%'; // Starts with same local part
+            $params[] = '%@' . $emailDomain; // Same domain
+        }
+        
+        $whereClause = implode(' AND ', $conditions);
+        
+        // First, get count for logging
+        $countResult = db()->fetch(
+            "SELECT COUNT(*) as count FROM donations WHERE $whereClause",
+            $params
+        );
+        $count = $countResult['count'] ?? 0;
+        
+        if ($count > 0) {
+            // Delete the sibling pending donations
+            db()->execute(
+                "DELETE FROM donations WHERE $whereClause",
+                $params
+            );
+            
+            error_log("Cleaned up $count sibling pending donation(s) for completed donation #$completedDonationId (email: $email, amount: $amount)");
+        }
+        
+        return (int)$count;
+        
+    } catch (Exception $e) {
+        // Don't fail the main flow if cleanup fails
+        error_log("Error cleaning up sibling pending donations: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Clean up old stale pending donations (for admin cleanup)
+ * 
+ * @param int $hoursOld How old the pending donations should be (default 24 hours)
+ * @return int Number of donations deleted
+ */
+function cleanupStalePendingDonations($hoursOld = 24) {
+    try {
+        // Get count first
+        $countResult = db()->fetch(
+            "SELECT COUNT(*) as count FROM donations 
+             WHERE status = 'pending' 
+             AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)",
+            [$hoursOld]
+        );
+        $count = $countResult['count'] ?? 0;
+        
+        if ($count > 0) {
+            db()->execute(
+                "DELETE FROM donations 
+                 WHERE status = 'pending' 
+                 AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)",
+                [$hoursOld]
+            );
+            error_log("Admin cleanup: Deleted $count stale pending donation(s) older than $hoursOld hours");
+        }
+        
+        return (int)$count;
+        
+    } catch (Exception $e) {
+        error_log("Error cleaning up stale pending donations: " . $e->getMessage());
+        return 0;
+    }
+}
