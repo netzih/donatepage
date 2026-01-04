@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let clientSecret = null;
     let donationId = null;
     let paymentMode = 'payment'; // 'payment' or 'subscription'
+    let paymentMethodType = 'card'; // 'card' or 'us_bank_account'
 
     // Campaign-specific config
     const basePath = CONFIG.basePath || '';
@@ -126,6 +127,56 @@ document.addEventListener('DOMContentLoaded', () => {
             freqBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             frequency = btn.dataset.freq;
+
+            // Hide/show payment methods that don't support recurring
+            updatePaymentMethodVisibility();
+        });
+    });
+
+    // Helper to show/hide payment methods based on frequency
+    function updatePaymentMethodVisibility() {
+        const paypalContainer = document.getElementById('paypal-button-container');
+
+        if (frequency === 'monthly') {
+            // Hide PayPal for monthly (recurring not implemented)
+            if (paypalContainer) {
+                paypalContainer.style.display = 'none';
+            }
+        } else {
+            // Show PayPal for one-time
+            if (paypalContainer) {
+                paypalContainer.style.display = 'block';
+            }
+        }
+    }
+
+    // Payment method toggle (Card vs Bank Account)
+    const paymentMethodBtns = document.querySelectorAll('.payment-method-btn');
+    paymentMethodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            paymentMethodBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.borderColor = '#ddd';
+                b.style.color = '#666';
+            });
+            btn.classList.add('active');
+            btn.style.borderColor = '#20a39e';
+            btn.style.color = '#20a39e';
+
+            const method = btn.dataset.method;
+            paymentMethodType = method === 'bank' ? 'us_bank_account' : 'card';
+
+            // Toggle visibility of card form elements
+            const cardForm = document.getElementById('payarc-card-form');
+            const stripeElement = document.getElementById('payment-element');
+
+            if (paymentMethodType === 'us_bank_account') {
+                if (cardForm) cardForm.style.display = 'none';
+                if (stripeElement) stripeElement.style.display = 'none';
+            } else {
+                if (cardForm) cardForm.style.display = 'block';
+                if (stripeElement) stripeElement.style.display = 'block';
+            }
         });
     });
 
@@ -405,7 +456,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(true);
 
             try {
-                if (CONFIG.payarcEnabled) {
+                // Check if ACH (bank account) payment
+                if (paymentMethodType === 'us_bank_account') {
+                    await processACHPayment();
+                } else if (CONFIG.payarcEnabled) {
                     // PayArc Direct API payment
                     await processPayArcPayment();
                 } else {
@@ -474,6 +528,147 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = successUrl;
         } else {
             throw new Error('Payment was not completed. Please try again.');
+        }
+    }
+
+    // ACH (Bank Account) payment processing via Stripe Financial Connections
+    async function processACHPayment() {
+        if (!stripe) {
+            throw new Error('Stripe is not initialized');
+        }
+
+        // Create PaymentIntent (one-time) or SetupIntent (monthly) for ACH
+        const response = await fetch(basePath + '/api/create-payment-intent.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: selectedAmount,
+                frequency: frequency,
+                campaign_id: campaignId,
+                donor_name: donorName.value.trim(),
+                donor_email: donorEmail.value.trim(),
+                display_name: displayName ? displayName.value.trim() : '',
+                donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                payment_method_type: 'us_bank_account',
+                csrf_token: CONFIG.csrfToken
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        if (data.mode === 'subscription') {
+            // Monthly ACH - use SetupIntent flow
+            const { error, setupIntent } = await stripe.collectBankAccountForSetup({
+                clientSecret: data.clientSecret,
+                params: {
+                    payment_method_type: 'us_bank_account',
+                    payment_method_data: {
+                        billing_details: {
+                            name: donorName.value.trim(),
+                            email: donorEmail.value.trim(),
+                        },
+                    },
+                },
+            });
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
+            if (setupIntent.status === 'requires_confirmation') {
+                const { error: confirmError, setupIntent: confirmedSetup } = await stripe.confirmUsBankAccountSetup(
+                    data.clientSecret
+                );
+
+                if (confirmError) {
+                    throw new Error(confirmError.message);
+                }
+
+                if (confirmedSetup.status === 'succeeded') {
+                    // Create subscription on server
+                    const confirmResponse = await fetch(basePath + '/api/confirm-payment.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mode: 'subscription',
+                            intent_id: confirmedSetup.id,
+                            donor_name: donorName.value.trim(),
+                            donor_email: donorEmail.value.trim(),
+                            display_name: displayName ? displayName.value.trim() : '',
+                            donation_message: donationMessageInput ? donationMessageInput.value.trim() : '',
+                            is_anonymous: isAnonymous ? isAnonymous.checked : false,
+                            amount: selectedAmount,
+                            campaign_id: campaignId
+                        })
+                    });
+
+                    const confirmData = await confirmResponse.json();
+
+                    if (confirmData.success) {
+                        const successUrl = basePath + '/success.php?donation_id=' + confirmData.donationId + '&status=processing' +
+                            (campaignId ? '&campaign=' + campaignId : '');
+                        window.location.href = successUrl;
+                    } else {
+                        throw new Error(confirmData.error || 'Subscription creation failed');
+                    }
+                } else {
+                    throw new Error('Bank account setup was not completed. Please try again.');
+                }
+            } else if (setupIntent.status === 'requires_payment_method') {
+                throw new Error('Please complete the bank account verification to proceed.');
+            }
+        } else {
+            // One-time ACH - use PaymentIntent flow
+            const { error, paymentIntent } = await stripe.collectBankAccountForPayment({
+                clientSecret: data.paymentIntentClientSecret,
+                params: {
+                    payment_method_type: 'us_bank_account',
+                    payment_method_data: {
+                        billing_details: {
+                            name: donorName.value.trim(),
+                            email: donorEmail.value.trim(),
+                        },
+                    },
+                },
+                expand: ['payment_method'],
+            });
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
+            if (paymentIntent.status === 'requires_confirmation') {
+                const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmUsBankAccountPayment(
+                    data.paymentIntentClientSecret
+                );
+
+                if (confirmError) {
+                    throw new Error(confirmError.message);
+                }
+
+                if (confirmedIntent.status === 'processing') {
+                    const successUrl = basePath + '/success.php?donation_id=' + data.donationId + '&status=processing' +
+                        (campaignId ? '&campaign=' + campaignId : '');
+                    window.location.href = successUrl;
+                } else if (confirmedIntent.status === 'succeeded') {
+                    const successUrl = basePath + '/success.php?donation_id=' + data.donationId +
+                        (campaignId ? '&campaign=' + campaignId : '');
+                    window.location.href = successUrl;
+                } else {
+                    throw new Error('Payment was not completed. Please try again.');
+                }
+            } else if (paymentIntent.status === 'requires_payment_method') {
+                throw new Error('Please complete the bank account verification to proceed.');
+            } else if (paymentIntent.status === 'processing') {
+                const successUrl = basePath + '/success.php?donation_id=' + data.donationId + '&status=processing' +
+                    (campaignId ? '&campaign=' + campaignId : '');
+                window.location.href = successUrl;
+            }
         }
     }
 

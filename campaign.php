@@ -16,6 +16,9 @@ $paypalMode = $settings['paypal_mode'] ?? 'sandbox';
 // PayArc settings
 $payarcEnabled = ($settings['payarc_enabled'] ?? '0') === '1' && !empty($settings['payarc_bearer_token']);
 
+// ACH settings
+$achEnabled = ($settings['ach_enabled'] ?? '0') === '1' && !empty($stripePk);
+
 $orgName = $settings['org_name'] ?? 'Organization';
 $currencySymbol = $settings['currency_symbol'] ?? '$';
 $logoPath = $settings['logo_path'] ?? '';
@@ -325,6 +328,22 @@ if ($campaign) {
                         <input type="email" id="donor-email" placeholder="john@example.com" required>
                     </div>
                     
+                    <?php if ($achEnabled): ?>
+                    <!-- Payment Method Toggle -->
+                    <div class="payment-method-toggle" style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #333;">Payment Method</label>
+                        <div style="display: flex; gap: 12px;">
+                            <button type="button" class="payment-method-btn active" data-method="card" style="flex: 1; padding: 14px 16px; border: 2px solid #20a39e; border-radius: 10px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; color: #20a39e; transition: all 0.2s;">
+                                💳 Card
+                            </button>
+                            <button type="button" class="payment-method-btn" data-method="bank" style="flex: 1; padding: 14px 16px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 600; color: #666; transition: all 0.2s;">
+                                <span>🏦 Bank Account</span>
+                                <span style="font-size: 11px; font-weight: normal; color: #20a39e;">Lower Fees</span>
+                            </button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
                     <div class="form-group">
                         <label for="display-name">Display Name (shown publicly)</label>
                         <input type="text" id="display-name" placeholder="How you'd like your name to appear">
@@ -437,6 +456,7 @@ if ($campaign) {
             stripeKey: '<?= h($stripePk) ?>',
             paypalClientId: '<?= h($paypalClientId) ?>',
             payarcEnabled: <?= $payarcEnabled ? 'true' : 'false' ?>,
+            achEnabled: <?= $achEnabled ? 'true' : 'false' ?>,
             csrfToken: '<?= h($csrfToken) ?>',
             currencySymbol: '<?= h($currencySymbol) ?>',
             campaignId: <?= $campaign ? $campaign['id'] : 'null' ?>,
