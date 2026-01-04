@@ -183,6 +183,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 $error = 'Invalid subscription or amount.';
             }
+        } elseif ($_POST['action'] === 'stripe_cancel') {
+            // Cancel Stripe subscription
+            $subscriptionId = $_POST['subscription_id'] ?? '';
+            $donationId = (int)($_POST['donation_id'] ?? 0);
+            
+            if ($subscriptionId) {
+                try {
+                    require_once __DIR__ . '/../vendor/autoload.php';
+                    $stripeSecretKey = $settings['stripe_sk'] ?? '';
+                    \Stripe\Stripe::setApiKey($stripeSecretKey);
+                    
+                    // Cancel at period end (allows subscription to run until next billing date)
+                    $subscription = \Stripe\Subscription::update($subscriptionId, [
+                        'cancel_at_period_end' => true
+                    ]);
+                    
+                    // Update local donation
+                    if ($donationId) {
+                        db()->update('donations', [
+                            'status' => 'cancelled',
+                            'metadata' => json_encode(array_merge(
+                                json_decode(db()->fetch("SELECT metadata FROM donations WHERE id = ?", [$donationId])['metadata'] ?? '{}', true) ?: [],
+                                ['cancelled_at' => date('Y-m-d H:i:s'), 'cancel_reason' => 'admin_cancelled']
+                            ))
+                        ], 'id = ?', [$donationId]);
+                    }
+                    
+                    $success = 'Subscription will be cancelled at the end of the current billing period.';
+                } catch (Exception $e) {
+                    $error = 'Error cancelling Stripe subscription: ' . $e->getMessage();
+                }
+            } else {
+                $error = 'Invalid subscription ID.';
+            }
+        } elseif ($_POST['action'] === 'stripe_edit') {
+            // Edit Stripe subscription amount
+            $subscriptionId = $_POST['subscription_id'] ?? '';
+            $donationId = (int)($_POST['donation_id'] ?? 0);
+            $newAmount = (int)($_POST['new_amount'] ?? 0);
+            
+            if ($subscriptionId && $newAmount > 0) {
+                try {
+                    require_once __DIR__ . '/../vendor/autoload.php';
+                    $stripeSecretKey = $settings['stripe_sk'] ?? '';
+                    \Stripe\Stripe::setApiKey($stripeSecretKey);
+                    
+                    $orgName = $settings['org_name'] ?? 'Donation';
+                    
+                    // Get subscription to find the item
+                    $subscription = \Stripe\Subscription::retrieve($subscriptionId);
+                    $itemId = $subscription->items->data[0]->id;
+                    
+                    // Create new price for the amount
+                    $price = \Stripe\Price::create([
+                        'unit_amount' => $newAmount * 100,
+                        'currency' => 'usd',
+                        'recurring' => ['interval' => 'month'],
+                        'product_data' => [
+                            'name' => "Monthly Donation to $orgName"
+                        ]
+                    ]);
+                    
+                    // Update subscription with new price
+                    \Stripe\Subscription::update($subscriptionId, [
+                        'items' => [
+                            [
+                                'id' => $itemId,
+                                'price' => $price->id,
+                            ]
+                        ],
+                        'proration_behavior' => 'none'  // Don't charge/credit difference
+                    ]);
+                    
+                    // Update local donation
+                    if ($donationId) {
+                        db()->update('donations', [
+                            'amount' => $newAmount
+                        ], 'id = ?', [$donationId]);
+                    }
+                    
+                    $success = "Subscription amount changed to \$$newAmount/month successfully!";
+                } catch (Exception $e) {
+                    $error = 'Error updating Stripe subscription: ' . $e->getMessage();
+                }
+            } else {
+                $error = 'Invalid subscription or amount.';
+            }
         }
     }
 }
@@ -351,7 +438,30 @@ usort($allSubscriptions, function($a, $b) {
                                         </form>
                                     </div>
                                     <?php elseif (($sub['status'] ?? '') === 'active' && ($sub['gateway'] ?? '') === 'stripe'): ?>
-                                    <small style="color: #888;">Manage in <a href="https://dashboard.stripe.com" target="_blank">Stripe Dashboard</a></small>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <!-- Edit Amount Form (Stripe) -->
+                                        <form method="POST" style="display: flex; gap: 4px; align-items: center;"
+                                              onsubmit="return confirm('Change subscription amount to $' + this.new_amount.value + '/month?');">
+                                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                            <input type="hidden" name="action" value="stripe_edit">
+                                            <input type="hidden" name="subscription_id" value="<?= h($sub['external_id'] ?? '') ?>">
+                                            <input type="hidden" name="donation_id" value="<?= h($sub['donation_id'] ?? $sub['id'] ?? 0) ?>">
+                                            <span style="color: #666; font-size: 13px;">$</span>
+                                            <input type="number" name="new_amount" value="<?= (int)$sub['amount'] ?>" 
+                                                   min="1" step="1" style="width: 60px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <button type="submit" class="btn btn-sm btn-secondary" title="Change Amount">Change</button>
+                                        </form>
+                                        
+                                        <!-- Cancel Form (Stripe) -->
+                                        <form method="POST" style="display: inline;" 
+                                              onsubmit="return confirm('Cancel this subscription?\\n\\nIt will remain active until the end of the current billing period.');">
+                                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                            <input type="hidden" name="action" value="stripe_cancel">
+                                            <input type="hidden" name="subscription_id" value="<?= h($sub['external_id'] ?? '') ?>">
+                                            <input type="hidden" name="donation_id" value="<?= h($sub['donation_id'] ?? $sub['id'] ?? 0) ?>">
+                                            <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                                        </form>
+                                    </div>
                                     <?php else: ?>
                                     <span style="color: #888;">—</span>
                                     <?php endif; ?>
