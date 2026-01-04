@@ -142,7 +142,7 @@ if ($embedMode > 0) {
                                 </button>
                                 <button type="button" class="payment-method-btn" data-method="bank" style="flex: 1; padding: 14px 16px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 600; color: #666; transition: all 0.2s;">
                                     <span>🏦 Bank Account</span>
-                                    <span style="font-size: 11px; font-weight: normal; color: #20a39e;">Lower Fees</span>
+                                    <span style="font-size: 11px; font-weight: normal; color: #20a39e;">Lower fees for organization</span>
                                 </button>
                             </div>
                         </div>
@@ -168,18 +168,17 @@ if ($embedMode > 0) {
                                 </div>
                             </div>
                         </div>
-                        
-                        <?php if ($stripePk): ?>
-                        <!-- Express checkout for Apple Pay / Google Pay via Stripe -->
-                        <div id="express-checkout-element" class="express-checkout" style="margin: 16px 0;"></div>
-                        <?php endif; ?>
-                        
                         <?php elseif ($stripePk): ?>
-                        <!-- Stripe Payment Element fallback -->
+                        <!-- Stripe Payment Element (when PayArc is disabled) -->
                         <div class="form-group">
                             <label>Card Details</label>
                             <div id="payment-element"></div>
                         </div>
+                        <?php endif; ?>
+                        
+                        <?php if ($stripePk): ?>
+                        <!-- Express checkout for Apple Pay / Google Pay via Stripe (both modes) -->
+                        <div id="express-checkout-element" class="express-checkout" style="margin: 16px 0;"></div>
                         <?php endif; ?>
                         
                         <div id="payment-message" class="payment-message"></div>

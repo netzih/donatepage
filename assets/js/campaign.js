@@ -170,12 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardForm = document.getElementById('payarc-card-form');
             const stripeElement = document.getElementById('payment-element');
 
+            // Toggle visibility of Express Checkout (Apple Pay / Google Pay)
+            const expressCheckout = document.getElementById('express-checkout-element');
+
             if (paymentMethodType === 'us_bank_account') {
                 if (cardForm) cardForm.style.display = 'none';
                 if (stripeElement) stripeElement.style.display = 'none';
+                if (expressCheckout) expressCheckout.style.display = 'none';
             } else {
                 if (cardForm) cardForm.style.display = 'block';
                 if (stripeElement) stripeElement.style.display = 'block';
+                if (expressCheckout) expressCheckout.style.display = 'block';
             }
         });
     });

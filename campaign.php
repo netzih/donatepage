@@ -338,7 +338,7 @@ if ($campaign) {
                             </button>
                             <button type="button" class="payment-method-btn" data-method="bank" style="flex: 1; padding: 14px 16px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 600; color: #666; transition: all 0.2s;">
                                 <span>🏦 Bank Account</span>
-                                <span style="font-size: 11px; font-weight: normal; color: #20a39e;">Lower Fees</span>
+                                <span style="font-size: 11px; font-weight: normal; color: #20a39e;">Lower fees for organization</span>
                             </button>
                         </div>
                     </div>
