@@ -83,6 +83,32 @@ function h($string) {
 }
 
 /**
+ * Clean HTML text for use in meta tags
+ * Removes style/script blocks, strips tags, and handles whitespace
+ */
+function cleanTextForMeta($html, $length = 160) {
+    if (empty($html)) return '';
+    
+    // Remove script and style blocks entirely
+    $text = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/is', '', $html);
+    
+    // Strip tags
+    $text = strip_tags($text);
+    
+    // Decode entities and handle whitespace
+    $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+    $text = preg_replace('/\s+/', ' ', $text);
+    $text = trim($text);
+    
+    // Truncate
+    if (mb_strlen($text) > $length) {
+        $text = mb_substr($text, 0, $length - 3) . '...';
+    }
+    
+    return $text;
+}
+
+/**
  * Generate CSRF token
  */
 function generateCsrfToken() {

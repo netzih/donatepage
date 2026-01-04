@@ -99,12 +99,12 @@ if ($campaign) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $campaign ? h($campaign['title']) . ' - ' : '' ?><?= h($orgName) ?></title>
-    <meta name="description" content="<?= $campaign ? h(strip_tags(substr($campaign['description'], 0, 160))) : 'Support our campaign' ?>">
+    <meta name="description" content="<?= $campaign ? h(cleanTextForMeta($campaign['description'])) : 'Support our campaign' ?>">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="<?= $campaign ? h($campaign['title']) : 'Campaign' ?> - <?= h($orgName) ?>">
-    <meta property="og:description" content="<?= $campaign ? h(strip_tags(substr($campaign['description'], 0, 160))) : 'Support our campaign' ?>">
+    <meta property="og:description" content="<?= $campaign ? h(cleanTextForMeta($campaign['description'])) : 'Support our campaign' ?>">
     <?php if ($campaign && $campaign['header_image']): ?>
     <meta property="og:image" content="<?= APP_URL . '/' . h($campaign['header_image']) ?>">
     <?php endif; ?>
