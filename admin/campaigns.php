@@ -61,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matching_multiplier' => $_POST['matching_multiplier'] ?? 2,
                         'start_date' => $_POST['start_date'],
                         'end_date' => $_POST['end_date'],
+                        'show_countdown' => isset($_POST['show_countdown']),
+                        'countdown_text' => $_POST['countdown_text'] ?? 'left to close',
                         'is_active' => isset($_POST['is_active']),
                         'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
                         'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER'
@@ -83,6 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'matching_multiplier' => $_POST['matching_multiplier'] ?? 2,
                         'start_date' => $_POST['start_date'],
                         'end_date' => $_POST['end_date'],
+                        'show_countdown' => isset($_POST['show_countdown']),
+                        'countdown_text' => $_POST['countdown_text'] ?? 'left to close',
                         'is_active' => isset($_POST['is_active']),
                         'matchers_section_title' => $_POST['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
                         'matchers_label_singular' => $_POST['matchers_label_singular'] ?? 'MATCHER',
@@ -493,12 +497,21 @@ if ($action === 'list') {
                     
                     <div class="form-group">
                         <label for="matching_multiplier">Matching Multiplier</label>
-                        <select id="matching_multiplier" name="matching_multiplier" style="max-width: 150px;">
-                            <option value="2">2x (Double)</option>
-                            <option value="3">3x (Triple)</option>
-                            <option value="4">4x</option>
-                            <option value="5">5x</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="show_countdown" name="show_countdown">
+                                <label for="show_countdown">Show Countdown Timer</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="countdown_text">Countdown Sub-text</label>
+                            <input type="text" id="countdown_text" name="countdown_text" value="left to close" placeholder="e.g., left to close">
+                            <small>Appears below the timer</small>
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -587,6 +600,20 @@ if ($action === 'list') {
                         <div class="form-group">
                             <label for="matching_multiplier">Matching Multiplier</label>
                             <input type="number" id="matching_multiplier" name="matching_multiplier" value="<?= $campaign['matching_multiplier'] ?>" min="1" step="1">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="show_countdown" name="show_countdown" <?= $campaign['show_countdown'] ? 'checked' : '' ?>>
+                                <label for="show_countdown">Show Countdown Timer</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="countdown_text">Countdown Sub-text</label>
+                            <input type="text" id="countdown_text" name="countdown_text" value="<?= h($campaign['countdown_text'] ?? 'left to close') ?>" placeholder="e.g., left to close">
+                            <small>Appears below the timer</small>
                         </div>
                     </div>
 

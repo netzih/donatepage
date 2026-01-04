@@ -877,6 +877,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Countdown Timer initialization
+    const countdownEl = document.querySelector('.campaign-countdown');
+    if (countdownEl) {
+        const endTimeStr = countdownEl.dataset.end;
+        // Replace dashes with slashes for better cross-browser compatibility
+        const endTime = new Date(endTimeStr.replace(/-/g, '/')).getTime();
+
+        const daysEl = countdownEl.querySelector('.days');
+        const hoursEl = countdownEl.querySelector('.hours');
+        const minutesEl = countdownEl.querySelector('.minutes');
+        const secondsEl = countdownEl.querySelector('.seconds');
+
+        function updateTimer() {
+            const now = new Date().getTime();
+            const distance = endTime - now;
+
+            if (distance < 0) {
+                const card = countdownEl.closest('.campaign-countdown-card');
+                if (card) card.style.display = 'none';
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            if (daysEl) daysEl.textContent = days.toString().padStart(2, '0');
+            if (hoursEl) hoursEl.textContent = hours.toString().padStart(2, '0');
+            if (minutesEl) minutesEl.textContent = minutes.toString().padStart(2, '0');
+            if (secondsEl) secondsEl.textContent = seconds.toString().padStart(2, '0');
+        }
+
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    }
+
     // Initialize matching display on load
     updateMatchingDisplay();
 });

@@ -89,6 +89,7 @@ function enrichCampaign($campaign) {
     // Convert boolean and numeric fields FIRST
     $campaign['matching_enabled'] = (bool)$campaign['matching_enabled'];
     $campaign['is_active'] = (bool)$campaign['is_active'];
+    $campaign['show_countdown'] = (bool)($campaign['show_countdown'] ?? false);
     $campaign['matching_multiplier'] = (int)($campaign['matching_multiplier'] ?? 2);
     $campaign['goal_amount'] = (float)($campaign['goal_amount'] ?? 0);
     
@@ -160,6 +161,8 @@ function createCampaign($data) {
         'matching_multiplier' => (int)($data['matching_multiplier'] ?? 2),
         'start_date' => $data['start_date'],
         'end_date' => $data['end_date'],
+        'show_countdown' => isset($data['show_countdown']) ? 1 : 0,
+        'countdown_text' => !empty($data['countdown_text']) ? $data['countdown_text'] : 'left to close',
         'is_active' => isset($data['is_active']) ? 1 : 0,
         'matchers_section_title' => $data['matchers_section_title'] ?? 'OUR GENEROUS MATCHERS',
         'matchers_label_singular' => $data['matchers_label_singular'] ?? 'MATCHER',
@@ -202,6 +205,12 @@ function updateCampaign($id, $data) {
     }
     if (isset($data['end_date'])) {
         $updateData['end_date'] = $data['end_date'];
+    }
+    if (array_key_exists('show_countdown', $data)) {
+        $updateData['show_countdown'] = $data['show_countdown'] ? 1 : 0;
+    }
+    if (isset($data['countdown_text'])) {
+        $updateData['countdown_text'] = $data['countdown_text'];
     }
     if (array_key_exists('is_active', $data)) {
         $updateData['is_active'] = $data['is_active'] ? 1 : 0;

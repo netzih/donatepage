@@ -191,6 +191,23 @@ if ($campaign) {
     <!-- Campaign Content -->
     <div class="campaign-content">
         <div class="campaign-main">
+            <!-- Countdown Timer -->
+            <?php if ($campaign['show_countdown'] && strtotime($campaign['end_date'] . ' 23:59:59') > time()): ?>
+            <div class="campaign-countdown-card">
+                <div class="campaign-countdown" data-end="<?= $campaign['end_date'] ?> 23:59:59">
+                    <div class="countdown-timer">
+                        <div class="timer-unit"><span class="days">00</span><small>Days</small></div>
+                        <div class="timer-unit"><span class="hours">00</span><small>Hrs</small></div>
+                        <div class="timer-unit"><span class="minutes">00</span><small>Min</small></div>
+                        <div class="timer-unit"><span class="seconds">00</span><small>Sec</small></div>
+                    </div>
+                    <?php if (!empty($campaign['countdown_text'])): ?>
+                    <div class="countdown-label"><?= h($campaign['countdown_text']) ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <!-- Progress Section -->
             <div class="campaign-progress-card">
                 <div class="progress-stats">

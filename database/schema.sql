@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
     `matching_multiplier` INT DEFAULT 2,
     `start_date` DATE NOT NULL,
     `end_date` DATE NOT NULL,
+    `show_countdown` BOOLEAN DEFAULT FALSE,
+    `countdown_text` VARCHAR(100) DEFAULT 'left to close',
     `is_active` BOOLEAN DEFAULT TRUE,
     `matchers_section_title` VARCHAR(255) DEFAULT 'OUR GENEROUS MATCHERS',
     `matchers_label_singular` VARCHAR(50) DEFAULT 'MATCHER',
