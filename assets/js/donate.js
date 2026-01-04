@@ -101,8 +101,28 @@ document.addEventListener('DOMContentLoaded', () => {
             freqBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             frequency = btn.dataset.freq;
+
+            // Hide/show payment methods that don't support recurring
+            updatePaymentMethodVisibility();
         });
     });
+
+    // Helper to show/hide payment methods based on frequency
+    function updatePaymentMethodVisibility() {
+        const paypalContainer = document.getElementById('paypal-button-container');
+
+        if (frequency === 'monthly') {
+            // Hide PayPal for monthly (recurring not implemented)
+            if (paypalContainer) {
+                paypalContainer.style.display = 'none';
+            }
+        } else {
+            // Show PayPal for one-time
+            if (paypalContainer) {
+                paypalContainer.style.display = 'block';
+            }
+        }
+    }
 
     // Payment method toggle (Card vs Bank Account)
     const paymentMethodBtns = document.querySelectorAll('.payment-method-btn');
@@ -428,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Stripe is not initialized');
         }
 
-        // Create PaymentIntent for ACH
+        // Create PaymentIntent (one-time) or SetupIntent (monthly) for ACH
         const response = await fetch('api/create-payment-intent.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -448,50 +468,102 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(data.error);
         }
 
-        // Use Stripe to collect bank account for payment
-        const { error, paymentIntent } = await stripe.collectBankAccountForPayment({
-            clientSecret: data.paymentIntentClientSecret,
-            params: {
-                payment_method_type: 'us_bank_account',
-                payment_method_data: {
-                    billing_details: {
-                        name: donorName.value.trim(),
-                        email: donorEmail.value.trim(),
+        if (data.mode === 'subscription') {
+            // Monthly ACH - use SetupIntent flow
+            const { error, setupIntent } = await stripe.collectBankAccountForSetup({
+                clientSecret: data.clientSecret,
+                params: {
+                    payment_method_type: 'us_bank_account',
+                    payment_method_data: {
+                        billing_details: {
+                            name: donorName.value.trim(),
+                            email: donorEmail.value.trim(),
+                        },
                     },
                 },
-            },
-            expand: ['payment_method'],
-        });
+            });
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        // Check the PaymentIntent status
-        if (paymentIntent.status === 'requires_confirmation') {
-            // Confirm the payment
-            const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmUsBankAccountPayment(
-                data.paymentIntentClientSecret
-            );
-
-            if (confirmError) {
-                throw new Error(confirmError.message);
+            if (error) {
+                throw new Error(error.message);
             }
 
-            // Handle the result
-            if (confirmedIntent.status === 'processing') {
-                // ACH payments are async - redirect to success with processing status
+            if (setupIntent.status === 'requires_confirmation') {
+                const { error: confirmError, setupIntent: confirmedSetup } = await stripe.confirmUsBankAccountSetup(
+                    data.clientSecret
+                );
+
+                if (confirmError) {
+                    throw new Error(confirmError.message);
+                }
+
+                if (confirmedSetup.status === 'succeeded') {
+                    // Create subscription on server
+                    const confirmResponse = await fetch('api/confirm-payment.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mode: 'subscription',
+                            intent_id: confirmedSetup.id,
+                            donor_name: donorName.value.trim(),
+                            donor_email: donorEmail.value.trim(),
+                            amount: selectedAmount
+                        })
+                    });
+
+                    const confirmData = await confirmResponse.json();
+
+                    if (confirmData.success) {
+                        window.location.href = `${basePath}/success.php?donation_id=${confirmData.donationId}&status=processing`;
+                    } else {
+                        throw new Error(confirmData.error || 'Subscription creation failed');
+                    }
+                } else {
+                    throw new Error('Bank account setup was not completed. Please try again.');
+                }
+            } else if (setupIntent.status === 'requires_payment_method') {
+                throw new Error('Please complete the bank account verification to proceed.');
+            }
+        } else {
+            // One-time ACH - use PaymentIntent flow
+            const { error, paymentIntent } = await stripe.collectBankAccountForPayment({
+                clientSecret: data.paymentIntentClientSecret,
+                params: {
+                    payment_method_type: 'us_bank_account',
+                    payment_method_data: {
+                        billing_details: {
+                            name: donorName.value.trim(),
+                            email: donorEmail.value.trim(),
+                        },
+                    },
+                },
+                expand: ['payment_method'],
+            });
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
+            if (paymentIntent.status === 'requires_confirmation') {
+                const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmUsBankAccountPayment(
+                    data.paymentIntentClientSecret
+                );
+
+                if (confirmError) {
+                    throw new Error(confirmError.message);
+                }
+
+                if (confirmedIntent.status === 'processing') {
+                    window.location.href = `${basePath}/success.php?donation_id=${data.donationId}&status=processing`;
+                } else if (confirmedIntent.status === 'succeeded') {
+                    window.location.href = `${basePath}/success.php?donation_id=${data.donationId}`;
+                } else {
+                    throw new Error('Payment was not completed. Please try again.');
+                }
+            } else if (paymentIntent.status === 'requires_payment_method') {
+                throw new Error('Please complete the bank account verification to proceed.');
+            } else if (paymentIntent.status === 'processing') {
                 window.location.href = `${basePath}/success.php?donation_id=${data.donationId}&status=processing`;
-            } else if (confirmedIntent.status === 'succeeded') {
-                window.location.href = `${basePath}/success.php?donation_id=${data.donationId}`;
-            } else {
-                throw new Error('Payment was not completed. Please try again.');
             }
-        } else if (paymentIntent.status === 'requires_payment_method') {
-            // User closed the modal without completing
-            throw new Error('Please complete the bank account verification to proceed.');
-        } else if (paymentIntent.status === 'processing') {
-            window.location.href = `${basePath}/success.php?donation_id=${data.donationId}&status=processing`;
         }
     }
 

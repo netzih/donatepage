@@ -71,25 +71,48 @@ try {
         // For subscriptions, we need to create a SetupIntent first
         // The actual subscription will be created after payment method is confirmed
         
-        $setupIntent = \Stripe\SetupIntent::create([
-            'payment_method_types' => ['card'],
+        $setupIntentParams = [
             'metadata' => [
                 'frequency' => 'monthly',
                 'amount' => $amount,
-                'org_name' => $orgName
+                'org_name' => $orgName,
+                'payment_method_type' => $paymentMethodType
             ]
-        ]);
+        ];
+        
+        if ($paymentMethodType === 'us_bank_account') {
+            // ACH subscription setup with Financial Connections
+            if (empty($donorEmail)) {
+                jsonResponse(['error' => 'Email is required for bank account payments'], 400);
+            }
+            
+            $setupIntentParams['payment_method_types'] = ['us_bank_account'];
+            $setupIntentParams['payment_method_options'] = [
+                'us_bank_account' => [
+                    'financial_connections' => [
+                        'permissions' => ['payment_method'],
+                    ],
+                    'verification_method' => 'automatic',
+                ],
+            ];
+        } else {
+            // Card subscription
+            $setupIntentParams['payment_method_types'] = ['card'];
+        }
+        
+        $setupIntent = \Stripe\SetupIntent::create($setupIntentParams);
         
         // Store pending donation
         $donationData = [
             'amount' => $amount,
             'frequency' => 'monthly',
-            'payment_method' => 'stripe',
+            'payment_method' => $paymentMethodType === 'us_bank_account' ? 'ach' : 'stripe',
             'transaction_id' => $setupIntent->id,
             'status' => 'pending',
             'metadata' => json_encode([
                 'setup_intent_id' => $setupIntent->id,
                 'type' => 'subscription',
+                'payment_method_type' => $paymentMethodType,
                 'campaign_id' => $campaignId
             ])
         ];
@@ -120,7 +143,8 @@ try {
             'clientSecret' => $setupIntent->client_secret,
             'donationId' => $donationId,
             'mode' => 'subscription',
-            'amount' => $amount
+            'amount' => $amount,
+            'paymentMethodType' => $paymentMethodType
         ]);
         
     } else {
