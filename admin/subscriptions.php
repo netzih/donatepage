@@ -232,7 +232,7 @@ try {
             NULL as payarc_customer_id
          FROM donations d 
          WHERE d.frequency = 'monthly' 
-           AND d.payment_method = 'stripe'
+           AND d.payment_method IN ('stripe', 'ach')
          ORDER BY d.created_at DESC"
     );
 } catch (Exception $e) {
