@@ -154,6 +154,14 @@ if (!empty($_GET['id'])) {
     $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$_GET['id']]);
 }
 
+// Handle donation_id redirect (for ACH and other payment methods)
+if (!empty($_GET['donation_id']) && !$donation) {
+    $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$_GET['donation_id']]);
+}
+
+// Check for ACH processing status (ACH payments take 3-5 days to clear)
+$achProcessing = ($_GET['status'] ?? '') === 'processing';
+
 // Fetch campaign data if available
 $campaign = null;
 if ($donation && !empty($donation['campaign_id'])) {
@@ -280,9 +288,19 @@ if ($donation && !empty($donation['campaign_id'])) {
             <?php endif; ?>
         </div>
         
+        <?php if ($achProcessing): ?>
+        <div style="background: #fff3cd; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #ffc107;">
+            <strong style="color: #856404;">⏳ Bank Payment Processing</strong>
+            <p style="color: #856404; margin-top: 8px; font-size: 14px;">
+                Your bank account payment is being processed. ACH transfers typically take 3-5 business days to complete. 
+                You'll receive a confirmation email once the payment clears.
+            </p>
+        </div>
+        <?php else: ?>
         <p style="margin-bottom: 24px; color: #666; font-size: 14px;">
             A confirmation email has been sent to your email address.
         </p>
+        <?php endif; ?>
         <?php else: ?>
         <p style="margin-bottom: 24px; color: #666;">
             Your donation has been processed successfully.

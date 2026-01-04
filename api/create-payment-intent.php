@@ -41,9 +41,18 @@ $donorEmail = trim($input['donor_email'] ?? '');
 $displayName = trim($input['display_name'] ?? '');
 $donationMessage = trim($input['donation_message'] ?? '');
 $isAnonymous = !empty($input['is_anonymous']) ? 1 : 0;
+$paymentMethodType = $input['payment_method_type'] ?? 'card'; // 'card' or 'us_bank_account'
 
 if ($amount < 1) {
     jsonResponse(['error' => 'Invalid amount'], 400);
+}
+
+// Validate ACH is enabled if requested
+if ($paymentMethodType === 'us_bank_account') {
+    $achEnabled = getSetting('ach_enabled', '0') === '1';
+    if (!$achEnabled) {
+        jsonResponse(['error' => 'ACH payments are not enabled'], 400);
+    }
 }
 
 // Get Stripe keys
@@ -116,29 +125,55 @@ try {
         
     } else {
         // One-time payment - use PaymentIntent
-        $paymentIntent = \Stripe\PaymentIntent::create([
+        $paymentIntentParams = [
             'amount' => (int)($amount * 100),
             'currency' => 'usd',
             'description' => "Donation to $orgName",
             'metadata' => [
                 'frequency' => 'once',
-                'amount' => $amount
+                'amount' => $amount,
+                'payment_method_type' => $paymentMethodType
             ],
-            'automatic_payment_methods' => [
+        ];
+        
+        if ($paymentMethodType === 'us_bank_account') {
+            // ACH payment with Financial Connections
+            // Requires email upfront for bank verification
+            if (empty($donorEmail)) {
+                jsonResponse(['error' => 'Email is required for bank account payments'], 400);
+            }
+            
+            $paymentIntentParams['payment_method_types'] = ['us_bank_account'];
+            $paymentIntentParams['payment_method_options'] = [
+                'us_bank_account' => [
+                    'financial_connections' => [
+                        'permissions' => ['payment_method'],
+                    ],
+                    'verification_method' => 'automatic', // Uses instant verification with micro-deposit fallback
+                ],
+            ];
+            // Receipt email for ACH
+            $paymentIntentParams['receipt_email'] = $donorEmail;
+        } else {
+            // Card payment - use automatic payment methods (supports Apple Pay, Google Pay, etc.)
+            $paymentIntentParams['automatic_payment_methods'] = [
                 'enabled' => true,
-            ],
-        ]);
+            ];
+        }
+        
+        $paymentIntent = \Stripe\PaymentIntent::create($paymentIntentParams);
         
         // Store pending donation
         $donationData = [
             'amount' => $amount,
             'frequency' => 'once',
-            'payment_method' => 'stripe',
+            'payment_method' => $paymentMethodType === 'us_bank_account' ? 'ach' : 'stripe',
             'transaction_id' => $paymentIntent->id,
             'status' => 'pending',
             'metadata' => json_encode([
                 'payment_intent_id' => $paymentIntent->id,
                 'type' => 'payment',
+                'payment_method_type' => $paymentMethodType,
                 'campaign_id' => $campaignId
             ])
         ];
@@ -166,9 +201,11 @@ try {
         }
         
         jsonResponse([
-            'clientSecret' => $paymentIntent->client_secret,
+            'clientSecret' => $paymentIntent->id, // For ACH, we pass the PaymentIntent ID
+            'paymentIntentClientSecret' => $paymentIntent->client_secret,
             'donationId' => $donationId,
-            'mode' => 'payment'
+            'mode' => 'payment',
+            'paymentMethodType' => $paymentMethodType
         ]);
     }
     

@@ -141,6 +141,101 @@ try {
             }
             break;
             
+        case 'payment_intent.succeeded':
+            // Handle completed payments (including ACH bank transfers)
+            $paymentIntent = $event->data->object;
+            
+            // Find donation by PaymentIntent ID
+            $donation = db()->fetch(
+                "SELECT * FROM donations WHERE transaction_id = ?",
+                [$paymentIntent->id]
+            );
+            
+            if ($donation && $donation['status'] !== 'completed') {
+                // Get payment method details
+                $paymentMethodType = 'stripe';
+                if (!empty($paymentIntent->payment_method_types)) {
+                    if (in_array('us_bank_account', $paymentIntent->payment_method_types)) {
+                        $paymentMethodType = 'ach';
+                    }
+                }
+                
+                // Get customer details from the payment intent
+                $customerEmail = $donation['donor_email'];
+                $customerName = $donation['donor_name'];
+                
+                // Try to get email from payment intent if not already set
+                if (empty($customerEmail) && !empty($paymentIntent->receipt_email)) {
+                    $customerEmail = $paymentIntent->receipt_email;
+                }
+                
+                // Update donation to completed
+                $updateData = [
+                    'status' => 'completed',
+                    'payment_method' => $paymentMethodType
+                ];
+                
+                if (!empty($customerEmail)) {
+                    $updateData['donor_email'] = $customerEmail;
+                    $updateData['donor_id'] = getOrCreateDonor($customerName, $customerEmail);
+                }
+                
+                db()->update('donations', $updateData, 'id = ?', [$donation['id']]);
+                
+                // Refresh donation data
+                $donation = db()->fetch("SELECT * FROM donations WHERE id = ?", [$donation['id']]);
+                
+                // Clean up sibling pending donations
+                if ($customerEmail) {
+                    cleanupSiblingPendingDonations(
+                        $donation['id'],
+                        $donation['amount'],
+                        $customerEmail,
+                        $paymentMethodType,
+                        $donation['campaign_id'] ?? null
+                    );
+                }
+                
+                // Send emails
+                if (!empty($customerEmail)) {
+                    sendDonorReceipt($donation);
+                }
+                sendAdminNotification($donation);
+                
+                error_log("ACH/Stripe payment completed: donation #{$donation['id']}, amount: {$donation['amount']}");
+            }
+            break;
+            
+        case 'payment_intent.processing':
+            // ACH payments enter processing state - log for monitoring
+            $paymentIntent = $event->data->object;
+            error_log("Payment processing (likely ACH): {$paymentIntent->id}");
+            break;
+            
+        case 'payment_intent.payment_failed':
+            // Handle failed payments (ACH failures, insufficient funds, etc.)
+            $paymentIntent = $event->data->object;
+            
+            // Find donation by PaymentIntent ID
+            $donation = db()->fetch(
+                "SELECT * FROM donations WHERE transaction_id = ?",
+                [$paymentIntent->id]
+            );
+            
+            if ($donation && $donation['status'] === 'pending') {
+                // Mark as failed
+                db()->update('donations', [
+                    'status' => 'failed',
+                    'metadata' => json_encode([
+                        'failure_reason' => $paymentIntent->last_payment_error->message ?? 'Payment failed',
+                        'failure_code' => $paymentIntent->last_payment_error->code ?? 'unknown'
+                    ])
+                ], 'id = ?', [$donation['id']]);
+                
+                error_log("Payment failed: donation #{$donation['id']}, reason: " . ($paymentIntent->last_payment_error->message ?? 'unknown'));
+            }
+            break;
+            
         default:
             // Unexpected event type
             error_log('Received unknown event type: ' . $event->type);

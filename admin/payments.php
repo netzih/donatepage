@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setSetting('stripe_pk', trim($_POST['stripe_pk'] ?? ''));
         setSetting('stripe_sk', trim($_POST['stripe_sk'] ?? ''));
         setSetting('stripe_account_id', trim($_POST['stripe_account_id'] ?? ''));
+        setSetting('ach_enabled', isset($_POST['ach_enabled']) ? '1' : '0');
         
         // PayPal settings
         setSetting('paypal_client_id', trim($_POST['paypal_client_id'] ?? ''));
@@ -106,6 +107,43 @@ $csrfToken = generateCsrfToken();
                         </div>
                         <small>Add this URL in <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Dashboard → Webhooks</a>. 
                                Select events: <code>checkout.session.completed</code>, <code>invoice.payment_succeeded</code></small>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>🏦 ACH Bank Payments</h2>
+                    <p style="margin-bottom: 20px; color: #666;">
+                        Allow donors to pay directly from their bank account using Stripe Financial Connections.
+                        <strong>Lower fees</strong> (0.8% capped at $5) compared to credit cards (~2.9% + $0.30).
+                    </p>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" name="ach_enabled" value="1" 
+                                   <?= ($settings['ach_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            <span>Enable ACH Bank Payments</span>
+                        </label>
+                        <small style="display: block; margin-top: 8px; color: #666;">
+                            Requires Stripe to be configured above. Donors can link their bank account for instant verification.
+                        </small>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 16px;">
+                        <strong style="color: #333;">ℹ️ How it works:</strong>
+                        <ul style="margin: 10px 0 0 20px; color: #555; line-height: 1.6;">
+                            <li>Donors select "Bank Account" as payment method</li>
+                            <li>They securely log into their bank via Stripe</li>
+                            <li>Payment is initiated (takes 3-5 business days to clear)</li>
+                            <li>Lower fees = more of their donation goes to your cause</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 12px 16px; border-radius: 8px; margin-top: 16px; border-left: 4px solid #ffc107;">
+                        <strong>⚠️ Webhook Events Required:</strong>
+                        <p style="margin: 8px 0 0; color: #856404; font-size: 14px;">
+                            Add these events to your Stripe webhook: <code>payment_intent.processing</code>, 
+                            <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>
+                        </p>
                     </div>
                 </section>
                 

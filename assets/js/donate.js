@@ -13,7 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let paymentElement = null;
     let clientSecret = null;
     let donationId = null;
-    let paymentMode = 'payment'; // 'payment' or 'subscription'\n    \n    // Config values\n    const basePath = CONFIG.basePath || '';
+    let paymentMode = 'payment'; // 'payment' or 'subscription'
+    let paymentMethodType = 'card'; // 'card' or 'us_bank_account'
+
+    // Config values
+    const basePath = CONFIG.basePath || '';
 
     // Elements
     const amountBtns = document.querySelectorAll('.amount-btn');
@@ -97,6 +101,38 @@ document.addEventListener('DOMContentLoaded', () => {
             freqBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             frequency = btn.dataset.freq;
+        });
+    });
+
+    // Payment method toggle (Card vs Bank Account)
+    const paymentMethodBtns = document.querySelectorAll('.payment-method-btn');
+    paymentMethodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            paymentMethodBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.borderColor = '#ddd';
+                b.style.color = '#666';
+            });
+            btn.classList.add('active');
+            btn.style.borderColor = '#20a39e';
+            btn.style.color = '#20a39e';
+
+            const method = btn.dataset.method;
+            paymentMethodType = method === 'bank' ? 'us_bank_account' : 'card';
+
+            // Toggle visibility of card form elements
+            const cardForm = document.getElementById('payarc-card-form');
+            const stripeElement = document.getElementById('payment-element');
+
+            if (paymentMethodType === 'us_bank_account') {
+                // Hide card inputs for bank payment
+                if (cardForm) cardForm.style.display = 'none';
+                if (stripeElement) stripeElement.style.display = 'none';
+            } else {
+                // Show card inputs
+                if (cardForm) cardForm.style.display = 'block';
+                if (stripeElement) stripeElement.style.display = 'block';
+            }
         });
     });
 
@@ -368,7 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(true);
 
             try {
-                if (CONFIG.payarcEnabled) {
+                // Check if ACH (bank account) payment
+                if (paymentMethodType === 'us_bank_account') {
+                    await processACHPayment();
+                } else if (CONFIG.payarcEnabled) {
                     // PayArc Direct API payment
                     await processPayArcPayment();
                 } else {
@@ -381,6 +420,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 setLoading(false);
             }
         });
+    }
+
+    // ACH (Bank Account) payment processing via Stripe Financial Connections
+    async function processACHPayment() {
+        if (!stripe) {
+            throw new Error('Stripe is not initialized');
+        }
+
+        // Create PaymentIntent for ACH
+        const response = await fetch('api/create-payment-intent.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: selectedAmount,
+                frequency: frequency,
+                donor_name: donorName.value.trim(),
+                donor_email: donorEmail.value.trim(),
+                payment_method_type: 'us_bank_account',
+                csrf_token: CONFIG.csrfToken
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // Use Stripe to collect bank account for payment
+        const { error, paymentIntent } = await stripe.collectBankAccountForPayment({
+            clientSecret: data.paymentIntentClientSecret,
+            params: {
+                payment_method_type: 'us_bank_account',
+                payment_method_data: {
+                    billing_details: {
+                        name: donorName.value.trim(),
+                        email: donorEmail.value.trim(),
+                    },
+                },
+            },
+            expand: ['payment_method'],
+        });
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        // Check the PaymentIntent status
+        if (paymentIntent.status === 'requires_confirmation') {
+            // Confirm the payment
+            const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmUsBankAccountPayment(
+                data.paymentIntentClientSecret
+            );
+
+            if (confirmError) {
+                throw new Error(confirmError.message);
+            }
+
+            // Handle the result
+            if (confirmedIntent.status === 'processing') {
+                // ACH payments are async - redirect to success with processing status
+                window.location.href = `${basePath}/success.php?donation_id=${data.donationId}&status=processing`;
+            } else if (confirmedIntent.status === 'succeeded') {
+                window.location.href = `${basePath}/success.php?donation_id=${data.donationId}`;
+            } else {
+                throw new Error('Payment was not completed. Please try again.');
+            }
+        } else if (paymentIntent.status === 'requires_payment_method') {
+            // User closed the modal without completing
+            throw new Error('Please complete the bank account verification to proceed.');
+        } else if (paymentIntent.status === 'processing') {
+            window.location.href = `${basePath}/success.php?donation_id=${data.donationId}&status=processing`;
+        }
     }
 
     // PayArc payment processing
