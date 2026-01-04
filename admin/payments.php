@@ -167,7 +167,7 @@ $csrfToken = generateCsrfToken();
                         <label>Stripe Webhook URL</label>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" id="stripe_webhook_url" readonly 
-                                   value="<?= APP_URL ?>/api/webhook.php"
+                                   value="<?= rtrim(APP_URL, '/') ?>/api/webhook.php"
                                    style="background: #f5f5f5; flex: 1;">
                             <button type="button" onclick="copyToClipboard('stripe_webhook_url')" 
                                     class="btn btn-secondary btn-sm">Copy</button>
@@ -302,7 +302,7 @@ $csrfToken = generateCsrfToken();
                         <label>PayArc Webhook URL</label>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" id="payarc_webhook_url" readonly 
-                                   value="<?= APP_URL ?>/api/payarc-webhook.php"
+                                   value="<?= rtrim(APP_URL, '/') ?>/api/payarc-webhook.php"
                                    style="background: #f5f5f5; flex: 1;">
                             <button type="button" onclick="copyToClipboard('payarc_webhook_url')" 
                                     class="btn btn-secondary btn-sm">Copy</button>
