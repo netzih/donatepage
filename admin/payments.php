@@ -9,6 +9,72 @@ requireRole(['admin', 'super_admin']);
 
 $success = '';
 $error = '';
+$webhookStatus = null;
+
+// Check webhook status via AJAX
+if (isset($_GET['check_webhook'])) {
+    header('Content-Type: application/json');
+    
+    $stripeSecretKey = getSetting('stripe_sk');
+    if (empty($stripeSecretKey)) {
+        echo json_encode(['status' => 'error', 'message' => 'Stripe secret key not configured']);
+        exit;
+    }
+    
+    try {
+        require_once __DIR__ . '/../vendor/autoload.php';
+        \Stripe\Stripe::setApiKey($stripeSecretKey);
+        
+        $webhooks = \Stripe\WebhookEndpoint::all(['limit' => 100]);
+        $appUrl = APP_URL . '/api/webhook.php';
+        
+        $found = false;
+        $enabledEvents = [];
+        $webhookUrl = '';
+        
+        foreach ($webhooks->data as $endpoint) {
+            if (strpos($endpoint->url, '/api/webhook.php') !== false) {
+                $found = true;
+                $enabledEvents = $endpoint->enabled_events;
+                $webhookUrl = $endpoint->url;
+                break;
+            }
+        }
+        
+        if (!$found) {
+            echo json_encode([
+                'status' => 'not_configured',
+                'message' => 'No webhook endpoint found for this platform',
+                'expected_url' => $appUrl
+            ]);
+        } else {
+            $requiredEvents = [
+                'checkout.session.completed',
+                'invoice.payment_succeeded',
+                'payment_intent.succeeded',
+                'payment_intent.processing',
+                'payment_intent.payment_failed'
+            ];
+            
+            $missingEvents = [];
+            foreach ($requiredEvents as $event) {
+                if (!in_array($event, $enabledEvents) && !in_array('*', $enabledEvents)) {
+                    $missingEvents[] = $event;
+                }
+            }
+            
+            echo json_encode([
+                'status' => empty($missingEvents) ? 'configured' : 'partial',
+                'url' => $webhookUrl,
+                'enabled_events' => $enabledEvents,
+                'missing_events' => $missingEvents
+            ]);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -18,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setSetting('stripe_pk', trim($_POST['stripe_pk'] ?? ''));
         setSetting('stripe_sk', trim($_POST['stripe_sk'] ?? ''));
         setSetting('stripe_account_id', trim($_POST['stripe_account_id'] ?? ''));
+        setSetting('stripe_webhook_secret', trim($_POST['stripe_webhook_secret'] ?? ''));
         setSetting('ach_enabled', isset($_POST['ach_enabled']) ? '1' : '0');
         
         // PayPal settings
@@ -105,8 +172,34 @@ $csrfToken = generateCsrfToken();
                             <button type="button" onclick="copyToClipboard('stripe_webhook_url')" 
                                     class="btn btn-secondary btn-sm">Copy</button>
                         </div>
-                        <small>Add this URL in <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Dashboard → Webhooks</a>. 
-                               Select events: <code>checkout.session.completed</code>, <code>invoice.payment_succeeded</code></small>
+                        <small>Add this URL in <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Dashboard → Webhooks</a></small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="stripe_webhook_secret">Webhook Signing Secret</label>
+                        <input type="password" id="stripe_webhook_secret" name="stripe_webhook_secret" 
+                               value="<?= h($settings['stripe_webhook_secret'] ?? '') ?>"
+                               placeholder="whsec_...">
+                        <small>Get this from Stripe Dashboard → Webhooks → [Your Endpoint] → Signing secret</small>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                        <strong style="display: block; margin-bottom: 8px;">📋 Required Webhook Events:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">checkout.session.completed</code>
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">invoice.payment_succeeded</code>
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">invoice.payment_failed</code>
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">payment_intent.succeeded</code>
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">payment_intent.processing</code>
+                            <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">payment_intent.payment_failed</code>
+                        </div>
+                        
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #dee2e6;">
+                            <button type="button" id="check-webhook-btn" class="btn btn-secondary btn-sm" onclick="checkWebhookStatus()">
+                                🔍 Check Webhook Status
+                            </button>
+                            <div id="webhook-status" style="margin-top: 12px;"></div>
+                        </div>
                     </div>
                 </section>
                 
@@ -247,6 +340,65 @@ $csrfToken = generateCsrfToken();
                     btn.style.color = '';
                 }, 2000);
             });
+        }
+        
+        async function checkWebhookStatus() {
+            const btn = document.getElementById('check-webhook-btn');
+            const statusDiv = document.getElementById('webhook-status');
+            
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            statusDiv.innerHTML = '<span style="color: #666;">Checking Stripe webhook configuration...</span>';
+            
+            try {
+                const response = await fetch('<?= BASE_PATH ?>/admin/payments.php?check_webhook=1');
+                const data = await response.json();
+                
+                if (data.status === 'configured') {
+                    statusDiv.innerHTML = `
+                        <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; padding: 12px; color: #155724;">
+                            <strong>✅ Webhook Configured Correctly!</strong>
+                            <div style="margin-top: 8px; font-size: 13px;">
+                                URL: <code>${data.url}</code>
+                            </div>
+                        </div>`;
+                } else if (data.status === 'partial') {
+                    statusDiv.innerHTML = `
+                        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; color: #856404;">
+                            <strong>⚠️ Webhook Partially Configured</strong>
+                            <div style="margin-top: 8px; font-size: 13px;">
+                                Missing events: <code>${data.missing_events.join('</code>, <code>')}</code>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 13px;">
+                                <a href="https://dashboard.stripe.com/webhooks" target="_blank">Edit in Stripe Dashboard →</a>
+                            </div>
+                        </div>`;
+                } else if (data.status === 'not_configured') {
+                    statusDiv.innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; padding: 12px; color: #721c24;">
+                            <strong>❌ Webhook Not Configured</strong>
+                            <div style="margin-top: 8px; font-size: 13px;">
+                                No webhook endpoint found for this platform.
+                            </div>
+                            <div style="margin-top: 8px; font-size: 13px;">
+                                <a href="https://dashboard.stripe.com/webhooks" target="_blank">Create webhook in Stripe Dashboard →</a>
+                            </div>
+                        </div>`;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; padding: 12px; color: #721c24;">
+                            <strong>Error:</strong> ${data.message || 'Unknown error'}
+                        </div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; padding: 12px; color: #721c24;">
+                        <strong>Error:</strong> ${error.message}
+                    </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Check Webhook Status';
+            }
         }
     </script>
 </body>
