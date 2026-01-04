@@ -605,26 +605,29 @@ if ($action === 'list') {
 
                     <div class="form-row">
                         <div class="form-group">
-                            <div class="toggle-switch">
-                                <input type="checkbox" id="show_countdown" name="show_countdown" <?= $campaign['show_countdown'] ? 'checked' : '' ?>>
-                                <label for="show_countdown">Show Countdown Timer</label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="countdown_text">Countdown Sub-text</label>
-                            <input type="text" id="countdown_text" name="countdown_text" value="<?= h($campaign['countdown_text'] ?? 'left to close') ?>" placeholder="e.g., left to close">
-                            <small>Appears below the timer</small>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
                             <label for="matchers_section_title">Matchers Section Title</label>
                             <input type="text" id="matchers_section_title" name="matchers_section_title" value="<?= h($campaign['matchers_section_title']) ?>" placeholder="e.g., OUR GENEROUS SPONSORS">
                         </div>
                         <div class="form-group">
                             <label for="matchers_label_singular">Individual Item Label</label>
                             <input type="text" id="matchers_label_singular" name="matchers_label_singular" value="<?= h($campaign['matchers_label_singular']) ?>" placeholder="e.g., SPONSOR">
+                        </div>
+                    </div>
+
+                    <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
+                    <h3 style="margin-bottom: 16px;">⏳ Countdown Timer</h3>
+                    <div class="form-row" style="background: #f0fdfa; padding: 20px; border-radius: 8px; border: 1px solid #ccfbf1; margin-bottom: 24px;">
+                        <div class="form-group">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="show_countdown" name="show_countdown" <?= $campaign['show_countdown'] ? 'checked' : '' ?>>
+                                <label for="show_countdown"><strong>Show Countdown Timer</strong></label>
+                            </div>
+                            <small style="display: block; margin-top: 8px;">Display time remaining until the campaign ends</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="countdown_text">Countdown Label Text</label>
+                            <input type="text" id="countdown_text" name="countdown_text" value="<?= h($campaign['countdown_text'] ?? 'left to close') ?>" placeholder="e.g., left to close">
+                            <small>Appears below the timer (e.g., "left to close")</small>
                         </div>
                     </div>
                     

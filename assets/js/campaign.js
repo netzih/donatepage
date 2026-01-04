@@ -878,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Countdown Timer initialization
-    const countdownEl = document.querySelector('.campaign-countdown');
+    const countdownEl = document.querySelector('.campaign-countdown-integrated');
     if (countdownEl) {
         const endTimeStr = countdownEl.dataset.end;
         // Replace dashes with slashes for better cross-browser compatibility
