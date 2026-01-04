@@ -236,6 +236,52 @@ try {
             }
             break;
             
+        case 'invoice.payment_failed':
+            // Handle failed recurring subscription payments
+            $invoice = $event->data->object;
+            $subscriptionId = $invoice->subscription ?? null;
+            $customerEmail = $invoice->customer_email ?? null;
+            $amountDue = ($invoice->amount_due ?? 0) / 100;
+            
+            error_log("Recurring payment failed: subscription={$subscriptionId}, email={$customerEmail}, amount={$amountDue}");
+            
+            // Find related donation by subscription ID
+            if ($subscriptionId) {
+                $donation = db()->fetch(
+                    "SELECT * FROM donations WHERE transaction_id = ? OR metadata LIKE ?",
+                    [$subscriptionId, "%{$subscriptionId}%"]
+                );
+                
+                if ($donation) {
+                    // Log failure in metadata
+                    $metadata = json_decode($donation['metadata'] ?? '{}', true) ?: [];
+                    $metadata['last_payment_failure'] = [
+                        'date' => date('Y-m-d H:i:s'),
+                        'reason' => $invoice->last_finalization_error->message ?? 'Payment failed',
+                        'invoice_id' => $invoice->id
+                    ];
+                    
+                    db()->update('donations', [
+                        'metadata' => json_encode($metadata)
+                    ], 'id = ?', [$donation['id']]);
+                }
+            }
+            
+            // Send admin notification about failed recurring payment
+            $adminEmail = getSetting('admin_email');
+            if ($adminEmail) {
+                $subject = "⚠️ Recurring Payment Failed";
+                $body = "<h2>Recurring Payment Failed</h2>";
+                $body .= "<p><strong>Email:</strong> " . htmlspecialchars($customerEmail ?? 'Unknown') . "</p>";
+                $body .= "<p><strong>Amount:</strong> $" . number_format($amountDue, 2) . "</p>";
+                $body .= "<p><strong>Subscription ID:</strong> " . htmlspecialchars($subscriptionId ?? 'Unknown') . "</p>";
+                $body .= "<p><strong>Reason:</strong> " . htmlspecialchars($invoice->last_finalization_error->message ?? 'Unknown') . "</p>";
+                $body .= "<p><a href=\"https://dashboard.stripe.com/subscriptions/{$subscriptionId}\">View in Stripe Dashboard</a></p>";
+                
+                sendEmail($adminEmail, $subject, $body);
+            }
+            break;
+            
         default:
             // Unexpected event type
             error_log('Received unknown event type: ' . $event->type);
