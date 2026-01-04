@@ -371,6 +371,90 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     document.getElementById('button-text').textContent = 'Complete Donation';
                 }
+
+                // Mount Express Checkout (Apple Pay / Google Pay) for Stripe-only mode
+                const expressCheckoutContainer = document.getElementById('express-checkout-element');
+                if (expressCheckoutContainer) {
+                    try {
+                        const expressCheckoutElement = elements.create('expressCheckout');
+                        expressCheckoutElement.mount('#express-checkout-element');
+
+                        // Handle express checkout confirmation
+                        expressCheckoutElement.on('confirm', async (event) => {
+                            // Update donation with donor details before confirming
+                            try {
+                                await fetch('api/update-donation.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        donation_id: donationId,
+                                        donor_name: donorName ? donorName.value.trim() : '',
+                                        donor_email: donorEmail ? donorEmail.value.trim() : '',
+                                        csrf_token: CONFIG.csrfToken
+                                    })
+                                });
+                            } catch (updateError) {
+                                console.log('Could not update donor details:', updateError.message);
+                            }
+
+                            // Different confirmation for subscriptions vs one-time payments
+                            if (paymentMode === 'subscription') {
+                                const { error, setupIntent } = await stripe.confirmSetup({
+                                    elements,
+                                    clientSecret,
+                                    confirmParams: {
+                                        return_url: window.location.origin + basePath + '/success.php'
+                                    },
+                                    redirect: 'if_required'
+                                });
+
+                                if (error) {
+                                    showMessage(error.message, 'error');
+                                } else if (setupIntent && setupIntent.status === 'succeeded') {
+                                    // Create subscription server-side
+                                    try {
+                                        const confirmResponse = await fetch('api/confirm-payment.php', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                mode: 'subscription',
+                                                intent_id: setupIntent.id,
+                                                amount: selectedAmount,
+                                                donor_name: donorName ? donorName.value.trim() : '',
+                                                donor_email: donorEmail ? donorEmail.value.trim() : '',
+                                                csrf_token: CONFIG.csrfToken
+                                            })
+                                        });
+                                        const confirmData = await confirmResponse.json();
+
+                                        if (confirmData.success) {
+                                            window.location.href = basePath + '/success.php?id=' + confirmData.donationId;
+                                        } else {
+                                            showMessage(confirmData.error || 'Subscription creation failed', 'error');
+                                        }
+                                    } catch (confirmError) {
+                                        showMessage('Subscription error: ' + confirmError.message, 'error');
+                                    }
+                                }
+                            } else {
+                                // One-time payment
+                                const { error } = await stripe.confirmPayment({
+                                    elements,
+                                    clientSecret,
+                                    confirmParams: {
+                                        return_url: window.location.origin + basePath + '/success.php'
+                                    }
+                                });
+                                if (error) {
+                                    showMessage(error.message, 'error');
+                                }
+                            }
+                        });
+                    } catch (expressError) {
+                        console.log('Express checkout not available:', expressError.message);
+                        expressCheckoutContainer.style.display = 'none';
+                    }
+                }
             }
         } catch (error) {
             showMessage(error.message, 'error');
