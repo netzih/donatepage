@@ -225,8 +225,8 @@ try {
         }
         
         jsonResponse([
-            'clientSecret' => $paymentIntent->id, // For ACH, we pass the PaymentIntent ID
-            'paymentIntentClientSecret' => $paymentIntent->client_secret,
+            'clientSecret' => $paymentIntent->client_secret,
+            'paymentIntentClientSecret' => $paymentIntent->client_secret, // ACH uses this
             'donationId' => $donationId,
             'mode' => 'payment',
             'paymentMethodType' => $paymentMethodType
