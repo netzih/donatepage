@@ -24,7 +24,7 @@ RewriteCond %{ENV:REDIRECT_STATUS} 200
 RewriteRule ^ - [L]
 
 # 1. Specific Admin rules (Must come BEFORE generic ones)
-RewriteCond %{REQUEST_URI} ^/admin/donor/([0-9]+)/?$ [NC]
+# Donor detail page: /admin/donor/123 -> admin/donor.php?id=123
 RewriteRule ^admin/donor/([0-9]+)/?$ admin/donor.php?id=$1 [L,QSA]
 
 # 2. Campaign clean URLs: /campaign/slug -> campaign.php?slug=slug
